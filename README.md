@@ -1,73 +1,61 @@
-# React + TypeScript + Vite
+# LocalUpdater (DriveUpdater)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ローカルPC内の特定ディレクトリ（デスクトップ、ドキュメントなど）をスキャンし、「最近更新されたファイル」を一覧表示するデスクトップアプリケーションです。React と Electron を用いて構築されており、モダンなUIとネイティブなファイル操作を両立しています。
 
-Currently, two official plugins are available:
+## ✨ 主な機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **ファイルの高速スキャンとリアルタイム監視**
+  - Node.js の `fs` と `chokidar` を使用し、ローカルの変更を即座にUIへ反映。
+- **対象フォルダの切り替えと追加**
+  - 標準のデスクトップ・ドキュメントに加え、任意のカスタムフォルダをスキャン対象に追加可能。
+- **画像プレビューと詳細メタデータ**
+  - 選択したファイルの詳細な時間情報（作成・更新・アクセス）やサイズを表示。画像ファイルはサムネイルプレビューが可能。
+- **スター（お気に入り）機能**
+  - 頻繁にアクセスするファイルをスター付けして素早くアクセス可能。
+- **OSネイティブ機能との連携**
+  - ファイルを直接開いたり、保存場所のエクスプローラーを起動することが可能。
 
-## React Compiler
+## 🚀 開発環境のセットアップ
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 前提条件
+- Node.js (v18以降推奨)
+- npm または pnpm
 
-## Expanding the ESLint configuration
+### インストールと起動
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# リポジトリのクローン
+git clone https://github.com/taka2560-commits/drive-updater.git
+cd drive-updater
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# パッケージのインストール
+npm install
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 開発モードで起動 (Vite + Electron)
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### ビルド (実行ファイルの作成)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
+成功すると、`release` フォルダ内に Windows 向けのインストーラー (`.exe`) が作成されます。
+
+## 📜 更新履歴
+
+### v1.1.0 (最新)
+- Lucide-react アイコンライブラリの導入によるUIの刷新
+- デスクトップ以外のディレクトリ（ドキュメント、ダウンロード）への切り替え機能追加
+- 任意のフォルダを選択・追加できる機能の実装
+- スター（お気に入り）機能の実装（Local Storage連携）
+- 画像ファイルを選択した際のプレビュー機能を追加
+- スキャンから除外するキーワードを指定できる設定画面を追加
+
+### v1.0.0
+- プロジェクト初期化 (Vite + React + TypeScript + Tailwind CSS v4)
+- Electron のメインプロセス / プレロードスクリプトの統合
+- UIモックアップの組み込み
+- Node.js (fsモジュール) によるファイルスキャン機能とIPC連携
+- Chokidar によるファイルのリアルタイム監視機能の実装
+- 「ファイルを開く」「保存場所を開く」のOSネイティブアクション実装

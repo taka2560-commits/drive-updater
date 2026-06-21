@@ -1,17 +1,18 @@
 import { Settings as SettingsIcon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
-import { useLayout } from '../hooks/useLayout';
+import type { LayoutMode } from '../hooks/useLayout';
 
 interface SettingsProps {
+  layout: LayoutMode;
+  setLayout: (mode: LayoutMode) => void;
   excludeTerms: string;
   setExcludeTerms: (val: string) => void;
   customDirs: { name: string; path: string }[];
   setCustomDirs: (dirs: { name: string; path: string }[]) => void;
 }
 
-export function Settings({ excludeTerms, setExcludeTerms, customDirs, setCustomDirs }: SettingsProps) {
+export function Settings({ layout, setLayout, excludeTerms, setExcludeTerms, customDirs, setCustomDirs }: SettingsProps) {
   const [theme, setTheme] = useTheme();
-  const [layout, setLayout] = useLayout();
 
   const sectionStyle = {
     padding: '24px',

@@ -42,31 +42,62 @@ export function DetailPane({
 
   const isStarred = starredPaths.includes(selectedFile.path);
 
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMins < 60) return { text: `${Math.max(1, diffMins)}分前`, recent: true };
+    if (diffHours < 24) return { text: `${diffHours}時間前`, recent: true };
+    if (diffDays === 1) return { text: `昨日`, recent: false };
+    if (diffDays > 1 && diffDays < 7) return { text: `${diffDays}日前`, recent: false };
+    if (diffDays >= 7 && diffDays < 14) return { text: `今週`, recent: false };
+    return { text: '', recent: false };
+  };
+
+  const relUpdate = formatRelativeTime(selectedFile.updated);
+
   const innerContent = (
-    <div style={{ padding: '20px', display: layout === 'B' ? 'flex' : 'block', gap: layout === 'B' ? '24px' : '0' }}>
+    <div style={{ padding: '24px', display: layout === 'B' ? 'flex' : 'block', gap: layout === 'B' ? '24px' : '0' }}>
       
       {/* プレビューと基本情報 (B案では左側) */}
       <div style={{ flex: layout === 'B' ? '0 0 240px' : 'auto' }}>
+        
+        {layout === 'A' && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-muted)' }}>詳細</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Star 
+                size={18} 
+                style={{ cursor: 'pointer', color: isStarred ? 'var(--color-accent)' : 'var(--color-muted)', fill: isStarred ? 'var(--color-accent)' : 'none' }} 
+                onClick={() => toggleStar(selectedFile.path)}
+              />
+              {onClose && <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--color-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}><span style={{ fontSize: '18px', lineHeight: 1 }}>&times;</span></button>}
+            </div>
+          </div>
+        )}
+
         {previewImage ? (
-          <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: 'var(--color-surface)', borderRadius: '8px', marginBottom: '16px', overflow: 'hidden', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#1a1c1e', borderRadius: '8px', marginBottom: '16px', overflow: 'hidden', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <img src={previewImage} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            <div style={{ position: 'absolute', bottom: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', color: '#fff', fontWeight: 'bold' }}>PNG</div>
+            <div style={{ position: 'absolute', bottom: '8px', left: '8px', color: 'rgba(255,255,255,0.7)', fontSize: '10px' }}>1920 x 1080</div>
           </div>
         ) : (
-          <div style={{ width: '100%', height: '120px', backgroundColor: 'var(--color-surface)', borderRadius: '8px', marginBottom: '16px', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)' }}>
+          <div style={{ width: '100%', height: '200px', backgroundColor: 'var(--color-surface)', borderRadius: '8px', marginBottom: '16px', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', flexDirection: 'column', gap: '12px' }}>
             {React.createElement(TYPE_CONFIG[selectedFile.type]?.icon || TYPE_CONFIG.other.icon, { size: 48 })}
+            <span style={{ fontSize: '12px' }}>プレビューなし</span>
           </div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
           <div style={{ overflow: 'hidden', flex: 1 }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-text)', lineHeight: 1.2, wordBreak: 'break-all', margin: 0 }}>{selectedFile.name}</h2>
-            <p style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px', margin: 0 }}>{formatBytes(selectedFile.size)}</p>
+            <h2 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-text)', lineHeight: 1.4, wordBreak: 'break-all', margin: 0 }}>{selectedFile.name}</h2>
+            <p style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px', margin: 0 }}>
+              {formatBytes(selectedFile.size)} &nbsp;·&nbsp; {TYPE_CONFIG[selectedFile.type]?.label || TYPE_CONFIG.other.label}
+            </p>
           </div>
-          <Star 
-            size={20} 
-            style={{ flexShrink: 0, cursor: 'pointer', color: isStarred ? 'var(--color-accent)' : 'var(--color-muted)', fill: isStarred ? 'var(--color-accent)' : 'none' }} 
-            onClick={() => toggleStar(selectedFile.path)}
-          />
         </div>
       </div>
 
@@ -74,64 +105,68 @@ export function DetailPane({
       <div style={{ flex: layout === 'B' ? '1' : 'auto', display: layout === 'B' ? 'flex' : 'block', gap: layout === 'B' ? '24px' : '0' }}>
         
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', flexDirection: layout === 'B' ? 'row' : 'column', gap: '8px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
             <button 
               onClick={() => (window as any).electronAPI?.openFile(selectedFile.path)} 
-              style={{ flex: 1, backgroundColor: 'var(--color-primary)', color: '#fff', padding: '10px', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              style={{ width: '100%', backgroundColor: 'var(--color-primary-hi)', color: '#fff', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s' }}
             >
               <ExternalLink size={16} /> ファイルを開く
             </button>
-            <button 
-              onClick={() => (window as any).electronAPI?.openFolder(selectedFile.path)} 
-              style={{ flex: 1, backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-            >
-              <FolderOpen size={16} /> 保存場所を開く
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => (window as any).electronAPI?.openFolder(selectedFile.path)} 
+                style={{ flex: 1, backgroundColor: 'var(--color-surface)', color: 'var(--color-sec-text)', border: '1px solid var(--color-border)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <FolderOpen size={16} /> 保存場所
+              </button>
+              <button 
+                onClick={() => copyToClipboard(selectedFile.path)}
+                style={{ flex: 1, backgroundColor: copied ? 'var(--color-secondary)' : 'var(--color-surface)', color: copied ? '#fff' : 'var(--color-sec-text)', border: '1px solid var(--color-border)', padding: '10px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
+              >
+                {copied ? "✓ コピー済" : <><Copy size={16}/> パス</>}
+              </button>
+            </div>
           </div>
 
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-muted)', marginBottom: '8px' }}>ローカルファイルパス</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '8px' }}>
-              <code style={{ fontSize: '10px', color: 'var(--color-muted)', wordBreak: 'break-all' }}>{selectedFile.path}</code>
-              <button 
-                onClick={() => copyToClipboard(selectedFile.path)}
-                style={{
-                  width: '100%', padding: '6px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  backgroundColor: copied ? 'var(--color-secondary)' : 'var(--color-bg)', color: copied ? '#fff' : 'var(--color-text)', transition: 'all 0.2s'
-                }}
-              >
-                {copied ? "✓ コピー済" : <><Copy size={14}/> パスをコピー</>}
-              </button>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-muted)', marginBottom: '8px' }}>ローカルパス</div>
+            <div style={{ backgroundColor: 'var(--color-log-bg)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '12px', fontSize: '11px', color: 'var(--color-muted)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)' }}>
+              {selectedFile.path}
             </div>
           </div>
         </div>
 
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Clock size={14}/> ファイル履歴
+          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-muted)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={12}/> 履歴
           </div>
-          <div style={{ paddingLeft: '8px', borderLeft: '2px solid var(--color-border)', marginLeft: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ paddingLeft: '8px', borderLeft: '1px solid var(--color-border)', marginLeft: '6px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
             <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', left: '-13px', top: '4px', width: '12px', height: '12px', backgroundColor: 'var(--color-primary)', borderRadius: '50%', border: '2px solid var(--color-bg)' }}></div>
+              <div style={{ position: 'absolute', left: '-12px', top: '4px', width: '10px', height: '10px', backgroundColor: 'var(--color-accent)', borderRadius: '50%', border: '2px solid var(--color-bg)' }}></div>
               <div style={{ paddingLeft: '16px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>最終更新日時</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px' }}>{formatDate(selectedFile.updated)}</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>最終更新</div>
+                <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>{formatDate(selectedFile.updated)}</div>
+                {relUpdate.recent && <div style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: 'bold', marginTop: '2px' }}>{relUpdate.text}</div>}
               </div>
             </div>
+            
             <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', left: '-13px', top: '4px', width: '12px', height: '12px', backgroundColor: 'var(--color-secondary)', borderRadius: '50%', border: '2px solid var(--color-bg)' }}></div>
+              <div style={{ position: 'absolute', left: '-12px', top: '4px', width: '10px', height: '10px', backgroundColor: 'var(--color-sec-text)', borderRadius: '50%', border: '2px solid var(--color-bg)' }}></div>
               <div style={{ paddingLeft: '16px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>最終アクセス日時</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px' }}>{formatDate(selectedFile.accessed)}</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>最終アクセス</div>
+                <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>{formatDate(selectedFile.accessed)}</div>
               </div>
             </div>
+            
             <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', left: '-13px', top: '4px', width: '12px', height: '12px', backgroundColor: 'var(--color-border)', borderRadius: '50%', border: '2px solid var(--color-bg)' }}></div>
+              <div style={{ position: 'absolute', left: '-12px', top: '4px', width: '10px', height: '10px', backgroundColor: 'var(--color-muted)', borderRadius: '50%', border: '2px solid var(--color-bg)' }}></div>
               <div style={{ paddingLeft: '16px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>作成日時</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px' }}>{formatDate(selectedFile.created)}</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>作成</div>
+                <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>{formatDate(selectedFile.created)}</div>
               </div>
             </div>
+
           </div>
         </div>
       </div>

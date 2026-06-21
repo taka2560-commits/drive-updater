@@ -7,9 +7,12 @@ import { FileTable } from './components/FileTable';
 import { DetailPane } from './components/DetailPane';
 import { Settings } from './components/Settings';
 import { useLayout } from './hooks/useLayout';
+import { FileGroupList } from './components/FileGroupList';
+import { HeatmapSection } from './components/HeatmapSection';
+import { DetailModal } from './components/DetailModal';
 
 export default function App() {
-  const [layout] = useLayout();
+  const [layout, setLayout] = useLayout();
   // --- 状態管理 ---
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -22,6 +25,7 @@ export default function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, file: FileData } | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [recursive, setRecursive] = useState(false);
+  const [filterByDate, setFilterByDate] = useState<string | null>(null);
 
   // プレビュー画像
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -157,6 +161,12 @@ export default function App() {
     if (activeFilters.length > 0) {
       data = data.filter(d => activeFilters.includes(d.type));
     }
+    if (filterByDate) {
+      data = data.filter(d => {
+        const dStr = `${d.updated.getFullYear()}-${String(d.updated.getMonth() + 1).padStart(2, '0')}-${String(d.updated.getDate()).padStart(2, '0')}`;
+        return dStr === filterByDate;
+      });
+    }
     data.sort((a, b) => {
       const valA = a[sortCol];
       const valB = b[sortCol];
@@ -165,7 +175,7 @@ export default function App() {
       return 0;
     });
     return data;
-  }, [files, searchQuery, activeFilters, sortCol, sortAsc, appMode, starredPaths]);
+  }, [files, searchQuery, activeFilters, sortCol, sortAsc, appMode, starredPaths, filterByDate]);
 
   const toggleFilter = (type: string) => {
     setActiveFilters(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
@@ -195,20 +205,36 @@ export default function App() {
     return data;
   }, [files]);
 
-  return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }} onClick={() => setContextMenu(null)}>
-      
-      <Sidebar 
-        collapsed={collapsed} setCollapsed={setCollapsed}
-        appMode={appMode} setAppMode={setAppMode}
-        currentDir={currentDir} setCurrentDir={setCurrentDir}
-        defaultPaths={defaultPaths} customDirs={customDirs} handleAddFolder={handleAddFolder}
-      />
+  const totalSizeMB = useMemo(() => {
+    const bytes = files.reduce((acc, f) => acc + f.size, 0);
+    return (bytes / (1024 * 1024)).toFixed(1);
+  }, [files]);
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)' }}>
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    files.forEach(f => {
+      counts[f.type] = (counts[f.type] || 0) + 1;
+    });
+    return counts;
+  }, [files]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }} onClick={() => setContextMenu(null)}>
+      
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <Sidebar 
+          collapsed={collapsed} setCollapsed={setCollapsed}
+          appMode={appMode} setAppMode={setAppMode}
+          currentDir={currentDir} setCurrentDir={setCurrentDir}
+          defaultPaths={defaultPaths} customDirs={customDirs} handleAddFolder={handleAddFolder}
+          filesCount={displayData.length} starredCount={starredPaths.length}
+        />
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', minWidth: 0, minHeight: 0 }}>
         {appMode === "settings" ? (
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <Settings 
+              layout={layout} setLayout={setLayout}
               excludeTerms={excludeTerms} setExcludeTerms={setExcludeTerms}
               customDirs={customDirs} setCustomDirs={setCustomDirs}
             />
@@ -216,31 +242,50 @@ export default function App() {
         ) : (
           <>
             <FilterBar 
-              layout={layout} searchQuery={searchQuery} setSearchQuery={setSearchQuery} appMode={appMode}
+              layout={layout} setLayout={setLayout} searchQuery={searchQuery} setSearchQuery={setSearchQuery} appMode={appMode}
               fetchFiles={fetchFiles} viewMode={viewMode} setViewMode={setViewMode}
               activeFilters={activeFilters} toggleFilter={toggleFilter}
               recursive={recursive} setRecursive={setRecursive} activityData={activityData}
+              typeCounts={typeCounts} totalFiles={files.length}
             />
+
+            {layout === 'C' && (
+              <HeatmapSection 
+                files={files} 
+                filterByDate={filterByDate} 
+                setFilterByDate={setFilterByDate} 
+              />
+            )}
             
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
               <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
-                <FileTable 
-                  layout={layout} appMode={appMode} displayData={displayData} viewMode={viewMode}
-                  sortCol={sortCol} sortAsc={sortAsc} handleSort={handleSort}
-                  selectedFile={selectedFile} setSelectedFile={setSelectedFile}
-                  handleContextMenu={handleContextMenu} starredPaths={starredPaths} toggleStar={toggleStar}
-                  renderDetailPane={() => (
-                    <DetailPane 
-                      layout={layout} selectedFile={selectedFile} previewImage={previewImage}
-                      starredPaths={starredPaths} toggleStar={toggleStar}
-                      copyToClipboard={copyToClipboard} copied={copied}
-                      onClose={() => setSelectedFile(null)}
-                    />
-                  )}
-                />
+                {layout === 'B' ? (
+                  <FileGroupList 
+                    files={displayData} 
+                    starredPaths={starredPaths} 
+                    toggleStar={toggleStar} 
+                    copyToClipboard={copyToClipboard} 
+                    copied={copied} 
+                  />
+                ) : (
+                  <FileTable 
+                    layout={layout} appMode={appMode} displayData={displayData} viewMode={viewMode}
+                    sortCol={sortCol} sortAsc={sortAsc} handleSort={handleSort}
+                    selectedFile={selectedFile} setSelectedFile={setSelectedFile}
+                    handleContextMenu={handleContextMenu} starredPaths={starredPaths} toggleStar={toggleStar}
+                    renderDetailPane={() => (
+                      <DetailPane 
+                        layout={layout} selectedFile={selectedFile} previewImage={previewImage}
+                        starredPaths={starredPaths} toggleStar={toggleStar}
+                        copyToClipboard={copyToClipboard} copied={copied}
+                        onClose={() => setSelectedFile(null)}
+                      />
+                    )}
+                  />
+                )}
               </div>
 
-              {appMode === "files" && layout !== 'B' && (
+              {appMode === "files" && layout !== 'B' && layout !== 'C' && (
                 <DetailPane 
                   layout={layout} selectedFile={selectedFile} previewImage={previewImage}
                   starredPaths={starredPaths} toggleStar={toggleStar}
@@ -249,8 +294,41 @@ export default function App() {
                 />
               )}
             </div>
+
+            {layout === 'C' && selectedFile && (
+              <DetailModal 
+                selectedFile={selectedFile} 
+                previewImage={previewImage}
+                starredPaths={starredPaths} 
+                toggleStar={toggleStar}
+                copyToClipboard={copyToClipboard} 
+                copied={copied}
+                onClose={() => setSelectedFile(null)}
+                allFiles={displayData}
+                onNavigate={(newFile) => setSelectedFile(newFile)}
+              />
+            )}
           </>
         )}
+      </div>
+      </div>
+
+      {/* StatusBar */}
+      <div style={{ 
+        height: '28px', backgroundColor: 'var(--color-surface-2)', borderTop: '1px solid var(--color-border)', 
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', 
+        fontSize: '11px', color: 'var(--color-muted)', flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></div>
+            監視中
+          </div>
+          <div>{files.length}件 / {totalSizeMB} MB</div>
+        </div>
+        <div>
+          {currentDir}
+        </div>
       </div>
 
       {contextMenu && (

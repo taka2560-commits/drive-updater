@@ -44,6 +44,14 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.20);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.30);
   --shadow-lg: 0 24px 64px rgba(0,0,0,0.45);
+
+  /* heatmap (C案) */
+  --heat-0: #3A4046;
+  --heat-1: rgba(245, 153, 61, 0.20);
+  --heat-2: rgba(245, 153, 61, 0.35);
+  --heat-3: rgba(245, 153, 61, 0.55);
+  --heat-4: rgba(245, 153, 61, 0.80);
+  --heat-5: var(--color-accent);
 }
 
 /* ----- Night（既存の SiteSorter Night） ----- */
@@ -77,6 +85,14 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.30);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.40);
   --shadow-lg: 0 24px 64px rgba(0,0,0,0.60);
+
+  /* heatmap (C案) */
+  --heat-0: #2A2E32;
+  --heat-1: rgba(245, 205, 61, 0.20);
+  --heat-2: rgba(245, 205, 61, 0.40);
+  --heat-3: rgba(245, 205, 61, 0.60);
+  --heat-4: rgba(245, 205, 61, 0.85);
+  --heat-5: var(--color-accent);
 }
 
 /* ----- Light（ユーザー指定の System × Earth トークン） ----- */
@@ -110,6 +126,14 @@
   --shadow-sm: 0 1px 2px rgba(42,63,57,0.08);
   --shadow-md: 0 4px 12px rgba(42,63,57,0.12);
   --shadow-lg: 0 24px 64px rgba(42,63,57,0.18);
+
+  /* heatmap (C案) */
+  --heat-0: #DCE3E0;
+  --heat-1: rgba(245, 86, 61, 0.18);
+  --heat-2: rgba(245, 86, 61, 0.35);
+  --heat-3: rgba(245, 86, 61, 0.55);
+  --heat-4: rgba(245, 86, 61, 0.80);
+  --heat-5: var(--color-accent);
 }
 
 /* =============================================================

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Star } from 'lucide-react';
 import type { FileData } from './types';
 import { TYPE_CONFIG } from './types';
@@ -25,6 +25,48 @@ export function FileTable({
   layout, appMode, displayData, viewMode, sortCol, sortAsc, handleSort, selectedFile, setSelectedFile, handleContextMenu, starredPaths, toggleStar, renderDetailPane
 }: FileTableProps) {
   
+  const [colWidths, setColWidths] = useState({ name: 300, type: 100, size: 100, updated: 150 });
+  const draggingCol = useRef<string | null>(null);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent, col: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    draggingCol.current = col;
+    startX.current = e.clientX;
+    startWidth.current = colWidths[col as keyof typeof colWidths];
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!draggingCol.current) return;
+      const deltaX = e.clientX - startX.current;
+      const newWidth = Math.max(50, startWidth.current + deltaX);
+      setColWidths(prev => ({ ...prev, [draggingCol.current!]: newWidth }));
+    };
+    
+    const handleMouseUp = () => {
+      draggingCol.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      // Optional: save to localStorage
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const ResizeHandle = ({ col }: { col: string }) => (
+    <div 
+      onMouseDown={(e) => handleMouseDown(e, col)}
+      style={{
+        position: 'absolute', right: 0, top: 0, bottom: 0, width: '4px', cursor: 'col-resize',
+        backgroundColor: 'transparent', zIndex: 20
+      }}
+      onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary)'}
+      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+    />
+  );
+  
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -34,6 +76,28 @@ export function FileTable({
 
   const formatDate = (date: Date) => {
     return date.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 60) {
+      return { text: `${Math.max(1, diffMins)}分前`, recent: true };
+    } else if (diffHours < 24) {
+      return { text: `${diffHours}時間前`, recent: true };
+    } else if (diffDays === 1) {
+      return { text: `昨日`, recent: false };
+    } else if (diffDays > 1 && diffDays < 7) {
+      return { text: `${diffDays}日前`, recent: false };
+    } else if (diffDays >= 7 && diffDays < 14) {
+      return { text: `今週`, recent: false };
+    } else {
+      return { text: date.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric' }), recent: false };
+    }
   };
 
   if (appMode === "starred" && displayData.length === 0) {
@@ -99,7 +163,7 @@ export function FileTable({
                 onClick={(e) => toggleStar(file.path, e)}
               />
             </td>
-            <td style={{ padding: '12px', fontWeight: 'bold', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>
+            <td style={{ padding: '12px', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <IconComp size={16} style={{ color: isSelected ? '#fff' : TYPE_CONFIG[file.type]?.color || 'var(--color-muted)', flexShrink: 0 }} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
@@ -116,7 +180,9 @@ export function FileTable({
               </span>
             </td>
             <td style={{ padding: '12px', fontSize: '12px', color: isSelected ? '#fff' : 'var(--color-muted)' }}>{formatBytes(file.size)}</td>
-            <td style={{ padding: '12px', fontSize: '12px', color: isSelected ? '#fff' : 'var(--color-muted)' }}>{formatDate(file.updated)}</td>
+            <td style={{ padding: '12px', fontSize: '12px', color: isSelected ? '#fff' : (formatRelativeTime(file.updated).recent ? 'var(--color-accent)' : 'var(--color-muted)'), fontWeight: formatRelativeTime(file.updated).recent ? 'bold' : 'normal' }}>
+              {formatRelativeTime(file.updated).text}
+            </td>
           </tr>
           {layout === 'B' && isSelected && renderDetailPane && (
             <tr>
@@ -130,19 +196,33 @@ export function FileTable({
     };
 
     return (
-      <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+      <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead style={{ backgroundColor: 'var(--color-surface)', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid var(--color-border)' }}>
           <tr>
             <th style={{ padding: '12px', width: '40px' }}></th>
-            <th onClick={() => handleSort("name")} style={{ padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', cursor: 'pointer', userSelect: 'none' }}>
-              ファイル名 {sortCol === "name" ? (sortAsc ? "▲" : "▼") : "⇅"}
+            <th style={{ width: colWidths.name, padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', position: 'relative' }}>
+              <div onClick={() => handleSort("name")} style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>ファイル名 {sortCol === "name" ? (sortAsc ? "▲" : "▼") : "⇅"}</span>
+              </div>
+              <ResizeHandle col="name" />
             </th>
-            <th style={{ padding: '12px', fontWeight: 'bold', color: 'var(--color-text)' }}>種類</th>
-            <th onClick={() => handleSort("size")} style={{ padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', cursor: 'pointer', userSelect: 'none' }}>
-              サイズ {sortCol === "size" ? (sortAsc ? "▲" : "▼") : "⇅"}
+            <th style={{ width: colWidths.type, padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>種類</span>
+              </div>
+              <ResizeHandle col="type" />
             </th>
-            <th onClick={() => handleSort("updated")} style={{ padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', cursor: 'pointer', userSelect: 'none' }}>
-              最終更新日時 {sortCol === "updated" ? (sortAsc ? "▲" : "▼") : "⇅"}
+            <th style={{ width: colWidths.size, padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', position: 'relative' }}>
+              <div onClick={() => handleSort("size")} style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>サイズ {sortCol === "size" ? (sortAsc ? "▲" : "▼") : "⇅"}</span>
+              </div>
+              <ResizeHandle col="size" />
+            </th>
+            <th style={{ width: colWidths.updated, padding: '12px', fontWeight: 'bold', color: 'var(--color-text)', position: 'relative' }}>
+              <div onClick={() => handleSort("updated")} style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>最終更新日時 {sortCol === "updated" ? (sortAsc ? "▲" : "▼") : "⇅"}</span>
+              </div>
+              <ResizeHandle col="updated" />
             </th>
           </tr>
         </thead>

@@ -10,6 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 let win: BrowserWindow | null = null;
 
 function createWindow() {
+  // Dev: build/ is two levels up from dist-electron/. Prod: packaged resources.
+  const devIcon = join(__dirname, '../build/icon.png');
   win = new BrowserWindow({
     width: 1200,
     height: 760,
@@ -17,6 +19,7 @@ function createWindow() {
     minHeight: 640,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#222629',
+    icon: fs.existsSync(devIcon) ? devIcon : undefined,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
     },

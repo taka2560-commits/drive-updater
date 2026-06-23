@@ -19,12 +19,23 @@ interface Seed {
   sizeBytes: number;
   modAgo: number; // ms ago
   starred?: boolean;
+  isDir?: boolean;
 }
 
 // Seed files — clickable dummy data (chat decision: 静的ビジュアル/ダミーデータ).
 // Timestamps are relative to load time so relative labels stay realistic.
 const SEEDS: Seed[] = [
-  // Desktop
+  // Desktop — folders
+  { name: '作業中フォルダ',   folder: 'desktop',       sizeBytes: 0, modAgo: 1 * DAY,  isDir: true },
+  { name: '画像バックアップ',  folder: 'desktop',       sizeBytes: 0, modAgo: 5 * DAY,  isDir: true },
+  // Documents — folder
+  { name: '2026年',          folder: 'documents',     sizeBytes: 0, modAgo: 2 * DAY,  isDir: true },
+  // Downloads — folder
+  { name: '旧バージョン',     folder: 'downloads',     sizeBytes: 0, modAgo: 7 * DAY,  isDir: true },
+  // Custom — folder
+  { name: 'WIPフォルダ',     folder: 'custom:wip',    sizeBytes: 0, modAgo: 3 * DAY,  isDir: true },
+
+  // Desktop — files
   { name: 'プロジェクト計画書_v3.docx', folder: 'desktop', sizeBytes: 128 * 1024, modAgo: 14 * MIN, starred: true },
   { name: 'スクリーンショット_2026-06-21_143052.png', folder: 'desktop', sizeBytes: 1.2 * 1024 * 1024, modAgo: 2 * HOUR },
   { name: 'プレゼン資料_クライアント向け.pptx', folder: 'desktop', sizeBytes: 4.8 * 1024 * 1024, modAgo: 1 * DAY + 3 * HOUR, starred: true },
@@ -67,14 +78,14 @@ export function buildSampleFiles(now = Date.now()): FileEntry[] {
     const modifiedAt = now - s.modAgo;
     return {
       name: s.name,
-      ext: extOf(s.name),
+      ext: s.isDir ? '' : extOf(s.name),
       folder: s.folder,
       path: `${folder.path}\\${s.name}`,
       sizeBytes: Math.round(s.sizeBytes),
       modifiedAt,
       accessedAt: modifiedAt + 2 * MIN,
       createdAt: modifiedAt - 3 * DAY,
-      isDir: false,
+      isDir: s.isDir ?? false,
     };
   });
 }

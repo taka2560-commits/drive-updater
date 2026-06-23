@@ -12,26 +12,40 @@ export function FileGroupList() {
   const { filteredFiles, folders, isStarred, toggleStar, browseInto } = useStore();
   const [expandedPath, setExpandedPath] = useState<string | null>(null);
 
-  const groups = useMemo(() => groupByTime(filteredFiles), [filteredFiles]);
+  const dirs = useMemo(() => filteredFiles.filter((f) => f.isDir), [filteredFiles]);
+  const files = useMemo(() => filteredFiles.filter((f) => !f.isDir), [filteredFiles]);
+  const groups = useMemo(() => groupByTime(files), [files]);
+
+  function makeCard(f: FileEntry) {
+    return (
+      <FileCard
+        key={f.path}
+        file={f}
+        folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+        expanded={expandedPath === f.path}
+        starred={!f.isDir && isStarred(f.path)}
+        onToggle={() => setExpandedPath((prev) => (prev === f.path ? null : f.path))}
+        onOpen={() => (f.isDir ? browseInto(f.path) : window.localUpdater?.openPath(f.path))}
+        onToggleStar={() => toggleStar(f.path)}
+      />
+    );
+  }
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', padding: '8px 32px 24px' }}>
+      {dirs.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <FolderGroupHeader count={dirs.length} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {dirs.map(makeCard)}
+          </div>
+        </div>
+      )}
       {groups.map((g) => (
         <div key={g.key} style={{ marginTop: 16 }}>
           <GroupHeader group={g} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-            {g.files.map((f) => (
-              <FileCard
-                key={f.path}
-                file={f}
-                folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
-                expanded={expandedPath === f.path}
-                starred={!f.isDir && isStarred(f.path)}
-                onToggle={() => setExpandedPath((prev) => (prev === f.path ? null : f.path))}
-                onOpen={() => (f.isDir ? browseInto(f.path) : window.localUpdater?.openPath(f.path))}
-                onToggleStar={() => toggleStar(f.path)}
-              />
-            ))}
+            {g.files.map(makeCard)}
           </div>
         </div>
       ))}
@@ -51,6 +65,16 @@ function GroupHeader({ group }: { group: FileGroup }) {
       <span style={{ fontSize: 11, color: accent ? 'var(--color-accent)' : 'var(--color-muted)' }}>
         {group.files.length}件 · {formatBytes(group.totalBytes)}
       </span>
+    </div>
+  );
+}
+
+function FolderGroupHeader({ count }: { count: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, height: 28 }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>フォルダ</span>
+      <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+      <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>{count}件</span>
     </div>
   );
 }

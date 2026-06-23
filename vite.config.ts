@@ -1,18 +1,25 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import electron from 'vite-plugin-electron/simple'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import electron from 'vite-plugin-electron';
+import renderer from 'vite-plugin-electron-renderer';
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    electron({
-      main: {
+    electron([
+      {
+        // Main process entry → dist-electron/main.js (matches package.json "main").
         entry: 'electron/main.ts',
       },
-      preload: {
-        input: 'electron/preload.ts',
+      {
+        entry: 'electron/preload.ts',
+        onstart(args) {
+          // Reload the renderer when the preload script changes.
+          args.reload();
+        },
       },
-    }),
+    ]),
+    renderer(),
   ],
-})
+});

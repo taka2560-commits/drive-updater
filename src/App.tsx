@@ -1,375 +1,94 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { ExternalLink, FolderOpen, Star, Copy } from 'lucide-react';
-import type { FileData } from './components/types';
-import { Sidebar } from './components/Sidebar';
-import { FilterBar } from './components/FilterBar';
-import { FileTable } from './components/FileTable';
-import { DetailPane } from './components/DetailPane';
-import { Settings } from './components/Settings';
-import { useLayout } from './hooks/useLayout';
-import { FileGroupList } from './components/FileGroupList';
-import { HeatmapSection } from './components/HeatmapSection';
-import { DetailModal } from './components/DetailModal';
+import { useEffect, useRef } from 'react';
+import { StoreProvider } from './store';
+import { useStore } from './storeContext';
+import { MainScreen } from './screens/MainScreen';
+import { StarredScreen } from './screens/StarredScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+
+function Shell() {
+  const store = useStore();
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Global keyboard shortcuts (spec §4.2).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const typing =
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Escape works everywhere (incl. while typing): clear → deselect → close.
+      if (e.key === 'Escape') {
+        if (store.searchQuery) store.setSearchQuery('');
+        else if (store.selectedPath) store.setSelected(null);
+        (document.activeElement as HTMLElement)?.blur?.();
+        return;
+      }
+
+      if (mod && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        store.setScreen('main');
+        searchRef.current?.focus();
+        return;
+      }
+      if (mod && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        store.rescan();
+        return;
+      }
+      if (mod && e.key === ',') {
+        e.preventDefault();
+        store.setScreen('settings');
+        return;
+      }
+
+      if (typing) return;
+
+      if (e.key === '/') {
+        e.preventDefault();
+        store.setScreen('main');
+        searchRef.current?.focus();
+        return;
+      }
+
+      if (mod && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        if (store.selectedPath) store.toggleStar(store.selectedPath);
+        return;
+      }
+
+      // Arrow navigation only on the main file list.
+      if (store.screen === 'main' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        const list = store.filteredFiles;
+        if (list.length === 0) return;
+        const idx = list.findIndex((f) => f.path === store.selectedPath);
+        let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+        if (idx === -1) next = 0;
+        next = Math.max(0, Math.min(list.length - 1, next));
+        store.setSelected(list[next].path);
+        return;
+      }
+
+      if (e.key === ' ' && store.screen === 'main') {
+        e.preventDefault();
+        store.setSelected(store.selectedPath ? null : (store.filteredFiles[0]?.path ?? null));
+      }
+    }
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [store]);
+
+  if (store.screen === 'starred') return <StarredScreen />;
+  if (store.screen === 'settings') return <SettingsScreen />;
+  return <MainScreen searchRef={searchRef} />;
+}
 
 export default function App() {
-  const [layout, setLayout] = useLayout();
-  // --- 状態管理 ---
-  const [collapsed, setCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [sortCol, setSortCol] = useState<keyof FileData>("updated");
-  const [sortAsc, setSortAsc] = useState(false);
-  const [files, setFiles] = useState<FileData[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, file: FileData } | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const [recursive, setRecursive] = useState(false);
-  const [filterByDate, setFilterByDate] = useState<string | null>(null);
-
-  // プレビュー画像
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  // スター機能
-  const [starredPaths, setStarredPaths] = useState<string[]>([]);
-
-  // フォルダ機能
-  const [defaultPaths, setDefaultPaths] = useState<{desktop:string, documents:string, downloads:string} | null>(null);
-  const [currentDir, setCurrentDir] = useState<string>("");
-  const [customDirs, setCustomDirs] = useState<{name:string, path:string}[]>([]);
-  
-  // モード (files | settings | starred)
-  const [appMode, setAppMode] = useState<"files" | "settings" | "starred">("files");
-
-  // 設定項目
-  const [excludeTerms, setExcludeTerms] = useState<string>("node_modules,.git,.DS_Store");
-
-  // --- 初期化 ---
-  useEffect(() => {
-    const savedStars = localStorage.getItem('starredPaths');
-    if (savedStars) setStarredPaths(JSON.parse(savedStars));
-    const savedExcludes = localStorage.getItem('excludeTerms');
-    if (savedExcludes) setExcludeTerms(savedExcludes);
-    const savedCustomDirs = localStorage.getItem('customDirs');
-    if (savedCustomDirs) setCustomDirs(JSON.parse(savedCustomDirs));
-
-    if ((window as any).electronAPI) {
-      (window as any).electronAPI.getDefaultPaths().then((paths: any) => {
-        setDefaultPaths(paths);
-        setCurrentDir(paths.desktop); // 初期はデスクトップ
-      });
-    }
-  }, []);
-
-  // --- データ取得 ---
-  const fetchFiles = async () => {
-    if ((window as any).electronAPI && currentDir) {
-      const termsArray = excludeTerms.split(',').map(s => s.trim()).filter(s => s);
-      const data = await (window as any).electronAPI.scanDirectory(currentDir, recursive, termsArray);
-      const parsedData = data.map((d: any) => ({
-        ...d,
-        created: new Date(d.created),
-        updated: new Date(d.updated),
-        accessed: new Date(d.accessed)
-      }));
-      setFiles(parsedData);
-      
-      if (selectedFile) {
-        const updatedSelected = parsedData.find((d: any) => d.id === selectedFile.id);
-        if (updatedSelected) setSelectedFile(updatedSelected);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (currentDir && appMode === "files") {
-      fetchFiles();
-      
-      if ((window as any).electronAPI) {
-        (window as any).electronAPI.startWatch(currentDir);
-        const removeListener = (window as any).electronAPI.onFileChanged(() => {
-          fetchFiles();
-        });
-        return () => {
-          removeListener();
-        };
-      }
-    }
-  }, [currentDir, recursive, excludeTerms, appMode]);
-
-  useEffect(() => {
-    if (selectedFile && selectedFile.type === 'image' && (window as any).electronAPI) {
-      (window as any).electronAPI.readImage(selectedFile.path).then((data: any) => {
-        setPreviewImage(data);
-      });
-    } else {
-      setPreviewImage(null);
-    }
-  }, [selectedFile]);
-
-  useEffect(() => {
-    localStorage.setItem('starredPaths', JSON.stringify(starredPaths));
-  }, [starredPaths]);
-
-  useEffect(() => {
-    localStorage.setItem('customDirs', JSON.stringify(customDirs));
-  }, [customDirs]);
-
-  useEffect(() => {
-    localStorage.setItem('excludeTerms', excludeTerms);
-  }, [excludeTerms]);
-
-
-  // --- ユーティリティ ---
-  const toggleStar = (path: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setStarredPaths(prev => 
-      prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
-    );
-  };
-
-  const handleAddFolder = async () => {
-    if ((window as any).electronAPI) {
-      const result = await (window as any).electronAPI.selectFolder();
-      if (result) {
-        if (!customDirs.find(d => d.path === result.path)) {
-          setCustomDirs([...customDirs, result]);
-        }
-        setCurrentDir(result.path);
-        setAppMode("files");
-      }
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // --- フィルタリング & ソート ---
-  const displayData = useMemo(() => {
-    let data = [...files];
-    if (appMode === "starred") {
-      data = data.filter(d => starredPaths.includes(d.path));
-    }
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      data = data.filter(d => d.name.toLowerCase().includes(q));
-    }
-    if (activeFilters.length > 0) {
-      data = data.filter(d => activeFilters.includes(d.type));
-    }
-    if (filterByDate) {
-      data = data.filter(d => {
-        const dStr = `${d.updated.getFullYear()}-${String(d.updated.getMonth() + 1).padStart(2, '0')}-${String(d.updated.getDate()).padStart(2, '0')}`;
-        return dStr === filterByDate;
-      });
-    }
-    data.sort((a, b) => {
-      const valA = a[sortCol];
-      const valB = b[sortCol];
-      if (valA < valB) return sortAsc ? -1 : 1;
-      if (valA > valB) return sortAsc ? 1 : -1;
-      return 0;
-    });
-    return data;
-  }, [files, searchQuery, activeFilters, sortCol, sortAsc, appMode, starredPaths, filterByDate]);
-
-  const toggleFilter = (type: string) => {
-    setActiveFilters(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
-  };
-
-  const handleSort = (col: keyof FileData) => {
-    if (sortCol === col) setSortAsc(!sortAsc);
-    else { setSortCol(col); setSortAsc(false); }
-  };
-
-  const handleContextMenu = (e: React.MouseEvent, file: FileData) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, file });
-  };
-
-  // Dummy activity data for the chart. A real implementation would parse files array and aggregate by day.
-  const activityData = useMemo(() => {
-    if (files.length === 0) return Array.from({length: 14}).fill(0) as number[];
-    const data = Array.from({length: 14}).fill(0) as number[];
-    const now = new Date();
-    files.forEach(f => {
-       const diff = Math.floor((now.getTime() - f.updated.getTime()) / (1000 * 60 * 60 * 24));
-       if (diff >= 0 && diff < 14) {
-           data[13 - diff]++;
-       }
-    });
-    return data;
-  }, [files]);
-
-  const totalSizeMB = useMemo(() => {
-    const bytes = files.reduce((acc, f) => acc + f.size, 0);
-    return (bytes / (1024 * 1024)).toFixed(1);
-  }, [files]);
-
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    files.forEach(f => {
-      counts[f.type] = (counts[f.type] || 0) + 1;
-    });
-    return counts;
-  }, [files]);
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }} onClick={() => setContextMenu(null)}>
-      
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar 
-          collapsed={collapsed} setCollapsed={setCollapsed}
-          appMode={appMode} setAppMode={setAppMode}
-          currentDir={currentDir} setCurrentDir={setCurrentDir}
-          defaultPaths={defaultPaths} customDirs={customDirs} handleAddFolder={handleAddFolder}
-          filesCount={displayData.length} starredCount={starredPaths.length}
-        />
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', minWidth: 0, minHeight: 0 }}>
-        {appMode === "settings" ? (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <Settings 
-              layout={layout} setLayout={setLayout}
-              excludeTerms={excludeTerms} setExcludeTerms={setExcludeTerms}
-              customDirs={customDirs} setCustomDirs={setCustomDirs}
-            />
-          </div>
-        ) : (
-          <>
-            <FilterBar 
-              layout={layout} setLayout={setLayout} searchQuery={searchQuery} setSearchQuery={setSearchQuery} appMode={appMode}
-              fetchFiles={fetchFiles} viewMode={viewMode} setViewMode={setViewMode}
-              activeFilters={activeFilters} toggleFilter={toggleFilter}
-              recursive={recursive} setRecursive={setRecursive} activityData={activityData}
-              typeCounts={typeCounts} totalFiles={files.length}
-            />
-
-            {layout === 'C' && (
-              <HeatmapSection 
-                files={files} 
-                filterByDate={filterByDate} 
-                setFilterByDate={setFilterByDate} 
-              />
-            )}
-            
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-              <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
-                {layout === 'B' ? (
-                  <FileGroupList 
-                    files={displayData} 
-                    starredPaths={starredPaths} 
-                    toggleStar={toggleStar} 
-                    copyToClipboard={copyToClipboard} 
-                    copied={copied} 
-                  />
-                ) : (
-                  <FileTable 
-                    layout={layout} appMode={appMode} displayData={displayData} viewMode={viewMode}
-                    sortCol={sortCol} sortAsc={sortAsc} handleSort={handleSort}
-                    selectedFile={selectedFile} setSelectedFile={setSelectedFile}
-                    handleContextMenu={handleContextMenu} starredPaths={starredPaths} toggleStar={toggleStar}
-                    renderDetailPane={() => (
-                      <DetailPane 
-                        layout={layout} selectedFile={selectedFile} previewImage={previewImage}
-                        starredPaths={starredPaths} toggleStar={toggleStar}
-                        copyToClipboard={copyToClipboard} copied={copied}
-                        onClose={() => setSelectedFile(null)}
-                      />
-                    )}
-                  />
-                )}
-              </div>
-
-              {appMode === "files" && layout !== 'B' && layout !== 'C' && (
-                <DetailPane 
-                  layout={layout} selectedFile={selectedFile} previewImage={previewImage}
-                  starredPaths={starredPaths} toggleStar={toggleStar}
-                  copyToClipboard={copyToClipboard} copied={copied}
-                  onClose={() => setSelectedFile(null)}
-                />
-              )}
-            </div>
-
-            {layout === 'C' && selectedFile && (
-              <DetailModal 
-                selectedFile={selectedFile} 
-                previewImage={previewImage}
-                starredPaths={starredPaths} 
-                toggleStar={toggleStar}
-                copyToClipboard={copyToClipboard} 
-                copied={copied}
-                onClose={() => setSelectedFile(null)}
-                allFiles={displayData}
-                onNavigate={(newFile) => setSelectedFile(newFile)}
-              />
-            )}
-          </>
-        )}
-      </div>
-      </div>
-
-      {/* StatusBar */}
-      <div style={{ 
-        height: '28px', backgroundColor: 'var(--color-surface-2)', borderTop: '1px solid var(--color-border)', 
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', 
-        fontSize: '11px', color: 'var(--color-muted)', flexShrink: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></div>
-            監視中
-          </div>
-          <div>{files.length}件 / {totalSizeMB} MB</div>
-        </div>
-        <div>
-          {currentDir}
-        </div>
-      </div>
-
-      {contextMenu && (
-        <div 
-          style={{
-            position: 'fixed', top: contextMenu.y, left: contextMenu.x,
-            backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            borderRadius: '8px', zIndex: 50, padding: '4px', minWidth: '160px'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 'bold', color: 'var(--color-muted)', borderBottom: '1px solid var(--color-border)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {contextMenu.file.name}
-          </div>
-          <button 
-            style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '12px', border: 'none', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}
-            onClick={() => { (window as any).electronAPI?.openFile(contextMenu.file.path); setContextMenu(null); }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          ><ExternalLink size={14} /> 開く</button>
-          <button 
-            style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '12px', border: 'none', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}
-            onClick={() => { (window as any).electronAPI?.openFolder(contextMenu.file.path); setContextMenu(null); }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          ><FolderOpen size={14} /> 保存場所を開く</button>
-          <button 
-            style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '12px', border: 'none', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}
-            onClick={() => { toggleStar(contextMenu.file.path); setContextMenu(null); }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          ><Star size={14} /> スターを{starredPaths.includes(contextMenu.file.path) ? '外す' : 'つける'}</button>
-          <button 
-            style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '12px', border: 'none', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}
-            onClick={() => { copyToClipboard(contextMenu.file.path); setContextMenu(null); }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          ><Copy size={14} /> パスをコピー</button>
-        </div>
-      )}
-    </div>
+    <StoreProvider>
+      <Shell />
+    </StoreProvider>
   );
 }

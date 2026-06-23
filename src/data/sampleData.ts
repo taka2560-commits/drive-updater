@@ -1,12 +1,13 @@
 import type { FileEntry, FolderDef, FolderKey } from '../types';
 
-// Standard + custom folders shown in the sidebar.
+// Standard folders shown in the sidebar. In Electron these paths are replaced
+// with the real OS paths on startup (get-default-paths); the literals below are
+// only placeholders for browser/dev preview. User-added folders are persisted
+// separately in localStorage.
 export const FOLDERS: FolderDef[] = [
   { key: 'desktop', label: 'デスクトップ', path: 'C:\\Users\\taka\\Desktop', icon: 'desktop', isStandard: true },
   { key: 'documents', label: 'ドキュメント', path: 'C:\\Users\\taka\\Documents', icon: 'documents', isStandard: true },
   { key: 'downloads', label: 'ダウンロード', path: 'C:\\Users\\taka\\Downloads', icon: 'downloads', isStandard: true },
-  { key: 'custom:projects', label: 'Projects/2026', path: 'C:\\Users\\taka\\Projects\\2026', icon: 'folder', isStandard: false },
-  { key: 'custom:wip', label: '作業中', path: 'D:\\WIP', icon: 'folder', isStandard: false },
 ];
 
 const MIN = 60_000;
@@ -32,8 +33,6 @@ const SEEDS: Seed[] = [
   { name: '2026年',          folder: 'documents',     sizeBytes: 0, modAgo: 2 * DAY,  isDir: true },
   // Downloads — folder
   { name: '旧バージョン',     folder: 'downloads',     sizeBytes: 0, modAgo: 7 * DAY,  isDir: true },
-  // Custom — folder
-  { name: 'WIPフォルダ',     folder: 'custom:wip',    sizeBytes: 0, modAgo: 3 * DAY,  isDir: true },
 
   // Desktop — files
   { name: 'プロジェクト計画書_v3.docx', folder: 'desktop', sizeBytes: 128 * 1024, modAgo: 14 * MIN, starred: true },
@@ -59,11 +58,6 @@ const SEEDS: Seed[] = [
   { name: '契約書_最終版.pdf', folder: 'downloads', sizeBytes: 892 * 1024, modAgo: 2 * DAY, starred: true },
   { name: 'setup_installer.exe', folder: 'downloads', sizeBytes: 64 * 1024 * 1024, modAgo: 5 * DAY },
   { name: 'sample-dataset.csv', folder: 'downloads', sizeBytes: 340 * 1024, modAgo: 11 * DAY },
-
-  // Custom folders
-  { name: 'README.md', folder: 'custom:projects', sizeBytes: 4 * 1024, modAgo: 1 * DAY },
-  { name: 'roadmap.xlsx', folder: 'custom:projects', sizeBytes: 72 * 1024, modAgo: 6 * HOUR },
-  { name: 'draft_v1.docx', folder: 'custom:wip', sizeBytes: 40 * 1024, modAgo: 2 * HOUR },
 ];
 
 function extOf(name: string): string {

@@ -5,7 +5,7 @@ import { Window } from '../components/Window';
 import { Button } from '../components/ui';
 import { useStore } from '../storeContext';
 import { THEMES, THEME_LABELS, THEME_SUBTITLES, type ThemeName } from '../theme/tokens';
-import type { SettingsTab } from '../types';
+import type { Layout, SettingsTab } from '../types';
 
 const TABS: { key: SettingsTab; label: string; Icon: LucideIcon }[] = [
   { key: 'appearance', label: '外観', Icon: Palette },
@@ -125,7 +125,67 @@ function AppearanceTab() {
           ))}
         </div>
       </div>
+
+      <LayoutSection />
     </>
+  );
+}
+
+const LAYOUT_INFO: Record<Layout, { label: string; sub: string; preview: string[] }> = {
+  A: { label: 'クラシック', sub: 'サイドバー + 表 + 詳細ペイン', preview: ['▮', '▤', '▯'] },
+  B: { label: 'タイムライン', sub: '上タブ + 時間軸グループカード', preview: ['▬', '▤', '▤'] },
+  C: { label: 'カレンダー', sub: 'ヒートマップ + モーダル詳細', preview: ['▦', '▤', '▤'] },
+};
+
+function LayoutSection() {
+  const { layout, setLayout } = useStore();
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-head-text)', margin: '0 0 4px' }}>
+        レイアウト <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>— 3スタイルから選択</span>
+      </h2>
+      <p style={{ fontSize: 11, color: 'var(--color-muted)', margin: '0 0 12px' }}>
+        ファイル一覧の表示方法を切り替えます。
+      </p>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {(['A', 'B', 'C'] as Layout[]).map((l) => {
+          const info = LAYOUT_INFO[l];
+          const selected = layout === l;
+          return (
+            <div
+              key={l}
+              onClick={() => setLayout(l)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setLayout(l)}
+              style={{
+                flex: 1,
+                background: 'var(--color-surface)',
+                border: selected ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+                borderRadius: 8,
+                padding: 14,
+                cursor: 'pointer',
+                position: 'relative',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              {selected && (
+                <div style={{ position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Check size={10} color="var(--color-bg)" />
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10, fontSize: 18, color: selected ? 'var(--color-accent)' : 'var(--color-disabled)', letterSpacing: 2 }}>
+                {info.preview.join('')}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: selected ? 'var(--color-text)' : 'var(--color-muted)' }}>
+                {l}: {info.label}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 2, lineHeight: 1.4 }}>{info.sub}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

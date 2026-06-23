@@ -4,6 +4,7 @@ import type {
   FileTypeFilter,
   FolderDef,
   FolderKey,
+  Layout,
   Screen,
   SettingsTab,
   SortDir,
@@ -21,6 +22,10 @@ export interface Store {
   setScreen: (s: Screen) => void;
   settingsTab: SettingsTab;
   setSettingsTab: (t: SettingsTab) => void;
+
+  // Layout switch (A: classic / B: timeline / C: calendar)
+  layout: Layout;
+  setLayout: (l: Layout) => void;
 
   // Folder list (dynamic — real paths in Electron, sample paths in browser)
   folders: FolderDef[];
@@ -49,6 +54,10 @@ export interface Store {
   setRecursive: (v: boolean) => void;
   viewMode: ViewMode;
   setViewMode: (v: ViewMode) => void;
+
+  // Date filter (heatmap cell / activity bar click). null = no date filter.
+  filterByDate: string | null;
+  setFilterByDate: (d: string | null) => void;
 
   sortKey: SortKey;
   sortDir: SortDir;

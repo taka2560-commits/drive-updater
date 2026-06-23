@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { StoreProvider } from './store';
 import { useStore } from './storeContext';
 import { MainScreen } from './screens/MainScreen';
+import { MainScreenB } from './screens/MainScreenB';
+import { MainScreenC } from './screens/MainScreenC';
 import { StarredScreen } from './screens/StarredScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 
@@ -57,6 +59,10 @@ function Shell() {
         return;
       }
 
+      // Arrow/Space navigation is A-layout only; B (accordion) and C (modal)
+      // handle these keys inside their own components.
+      if (store.layout !== 'A') return;
+
       // Arrow navigation only on the main file list.
       if (store.screen === 'main' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
@@ -82,6 +88,8 @@ function Shell() {
 
   if (store.screen === 'starred') return <StarredScreen />;
   if (store.screen === 'settings') return <SettingsScreen />;
+  if (store.layout === 'B') return <MainScreenB searchRef={searchRef} />;
+  if (store.layout === 'C') return <MainScreenC searchRef={searchRef} />;
   return <MainScreen searchRef={searchRef} />;
 }
 

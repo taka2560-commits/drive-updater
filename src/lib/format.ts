@@ -35,6 +35,12 @@ export function formatMonthDay(ts: number): string {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Local date key (YYYY-MM-DD) — shared by store/heatmap/grouping. */
+export function toDateKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /** Full timestamp: 2026-06-21 14:30 */
 export function formatDateTime(ts: number): string {
   const d = new Date(ts);

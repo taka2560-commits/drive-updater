@@ -4,6 +4,7 @@ import type {
   FileTypeFilter,
   FolderDef,
   FolderKey,
+  Layout,
   Screen,
   SettingsTab,
   SortDir,
@@ -12,6 +13,7 @@ import type {
 } from './types';
 import { applyTheme, loadSavedTheme, type ThemeName } from './theme/tokens';
 import { matchesType } from './lib/fileType';
+import { toDateKey } from './lib/format';
 import {
   buildSampleFiles,
   DEFAULT_STARRED,
@@ -65,6 +67,7 @@ const K = {
   customFolders: 'localUpdater.customFolders',
   recursive: 'localUpdater.recursive',
   viewMode: 'localUpdater.viewMode',
+  layout: 'localUpdater.layout',
 } as const;
 
 /** Merge two file lists, de-duplicating by path (later wins). */
@@ -79,6 +82,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(loadSavedTheme);
   const [screen, setScreen] = useState<Screen>('main');
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
+  const [layout, setLayoutState] = useState<Layout>(() => loadJSON<Layout>(K.layout, 'A'));
   const [activeFolder, setActiveFolderState] = useState<FolderKey>('desktop');
 
   const [folders, setFolders] = useState<FolderDef[]>(() => [
@@ -96,6 +100,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FileTypeFilter>('all');
+  const [filterByDate, setFilterByDate] = useState<string | null>(null);
   const [recursive, setRecursiveState] = useState<boolean>(() =>
     loadJSON<boolean>(K.recursive, false),
   );
@@ -124,6 +129,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   const setTheme = (t: ThemeName) => setThemeState(t);
+
+  const setLayout = (l: Layout) => {
+    setLayoutState(l);
+    saveJSON(K.layout, l);
+  };
 
   // Refs to keep latest values in scan/watch closures (synced in effects).
   const excludeRef = useRef(excludeKeywords);
@@ -182,6 +192,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSelected(null);
     setSearchQuery('');
     setTypeFilter('all');
+    setFilterByDate(null);
   };
 
   // Drill into a sub-folder: remember it, lazy-scan its contents, then show it.
@@ -191,6 +202,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSelected(null);
       setSearchQuery('');
       setTypeFilter('all');
+      setFilterByDate(null);
       const api = getAPI();
       if (api && !recursiveRef.current) {
         expandedRef.current.add(path);
@@ -386,7 +398,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [searchMatched]);
 
   const filteredFiles = useMemo(() => {
-    const out = searchMatched.filter((f) => f.isDir || matchesType(f.ext, typeFilter));
+    const out = searchMatched.filter((f) => {
+      if (!(f.isDir || matchesType(f.ext, typeFilter))) return false;
+      if (filterByDate && toDateKey(f.modifiedAt) !== filterByDate) return false;
+      return true;
+    });
     const dir = sortDir === 'asc' ? 1 : -1;
     out.sort((a, b) => {
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1; // dirs first
@@ -399,7 +415,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return cmp * dir;
     });
     return out;
-  }, [searchMatched, typeFilter, sortKey, sortDir]);
+  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate]);
 
   const selectedFile = useMemo(
     () => allFiles.find((f) => f.path === selectedPath) ?? null,
@@ -413,6 +429,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScreen,
     settingsTab,
     setSettingsTab,
+    layout,
+    setLayout,
     folders,
     addCustomFolder,
     removeCustomFolder,
@@ -432,6 +450,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRecursive,
     viewMode,
     setViewMode,
+    filterByDate,
+    setFilterByDate,
     sortKey,
     sortDir,
     toggleSort,

@@ -3,6 +3,7 @@ import { FolderOpen } from 'lucide-react';
 import { Window } from '../components/Window';
 import { Sidebar } from '../components/Sidebar';
 import { FilterBar } from '../components/FilterBar';
+import { BreadcrumbBar } from '../components/BreadcrumbBar';
 import { FileTable } from '../components/FileTable';
 import { DetailPane } from '../components/DetailPane';
 import { StatusBar } from '../components/StatusBar';
@@ -38,6 +39,7 @@ export function MainScreen({ searchRef }: { searchRef: RefObject<HTMLInputElemen
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <FilterBar files={folderFiles} searchRef={searchRef} />
+        <BreadcrumbBar />
         {isEmpty ? (
           <EmptyState
             variant={emptyVariant}

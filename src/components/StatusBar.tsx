@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { ChevronUp, FolderOpen } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { formatBytes } from '../lib/format';
 
-/** Footer status bar: watching indicator + counts + active path + breadcrumb. */
+/** Footer status bar: watching indicator + counts + current path. */
 export function StatusBar() {
-  const { filteredFiles, folderFiles, activeFolder, folders, browsePath, browseUp } = useStore();
+  const { filteredFiles, folderFiles, activeFolder, folders, browsePath } = useStore();
 
   const totalBytes = useMemo(
     () => filteredFiles.filter((f) => !f.isDir).reduce((acc, f) => acc + f.sizeBytes, 0),
@@ -44,30 +44,6 @@ export function StatusBar() {
         {' · '}
         {formatBytes(totalBytes)}
       </span>
-
-      {/* Sub-folder breadcrumb */}
-      {browsePath && (
-        <button
-          onClick={browseUp}
-          title="上の階層へ戻る"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            background: 'none',
-            border: '1px solid var(--color-border)',
-            borderRadius: 4,
-            padding: '2px 7px',
-            fontSize: 10,
-            color: 'var(--color-muted)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
-          <ChevronUp size={11} />
-          上の階層へ
-        </button>
-      )}
 
       <div style={{ flex: 1 }} />
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-mono)', maxWidth: 420, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

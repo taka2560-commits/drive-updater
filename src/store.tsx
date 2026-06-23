@@ -139,12 +139,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const excludeRef = useRef(excludeKeywords);
   const foldersRef = useRef(folders);
   const recursiveRef = useRef(recursive);
+  const activeFolderRef = useRef(activeFolder);
   // Folders the user has drilled into — re-scanned on every rescan so the
   // hierarchy stays populated (and watch refreshes keep them current).
   const expandedRef = useRef<Set<string>>(new Set());
   useEffect(() => { excludeRef.current = excludeKeywords; }, [excludeKeywords]);
   useEffect(() => { foldersRef.current = folders; }, [folders]);
   useEffect(() => { recursiveRef.current = recursive; }, [recursive]);
+  useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
 
   // Unified scan: roots (+ expanded sub-folders), then merge.
   const doScan = useCallback(() => {
@@ -221,7 +223,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const browseUp = useCallback(() => {
-    setBrowsePath(null);
+    setBrowsePath((prev) => {
+      if (!prev) return null;
+      const root = foldersRef.current.find((f) => f.key === activeFolderRef.current)?.path ?? '';
+      const sep = prev.includes('\\') ? '\\' : '/';
+      const parent = prev.slice(0, prev.lastIndexOf(sep));
+      // If parent is the root folder (or above), go to root (null = top of active folder).
+      return parent && parent !== root ? parent : null;
+    });
     setSelected(null);
   }, []);
 

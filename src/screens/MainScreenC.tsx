@@ -3,6 +3,7 @@ import { CalendarRange } from 'lucide-react';
 import { Window } from '../components/Window';
 import { Sidebar } from '../components/Sidebar';
 import { FilterBar } from '../components/FilterBar';
+import { BreadcrumbBar } from '../components/BreadcrumbBar';
 import { HeatmapSection } from '../components/HeatmapSection';
 import { FilterContextBar } from '../components/FilterContextBar';
 import { FileListC } from '../components/FileListC';
@@ -45,6 +46,7 @@ export function MainScreenC({ searchRef }: { searchRef: RefObject<HTMLInputEleme
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <FilterBar files={folderFiles} searchRef={searchRef} />
+        <BreadcrumbBar />
         <HeatmapSection />
         <FilterContextBar />
         {isEmpty ? (

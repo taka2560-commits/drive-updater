@@ -10,6 +10,8 @@ interface LocalUpdaterAPI {
     recursive: boolean,
     excludeKeywords: string[],
   ) => Promise<import('./types').FileEntry[]>;
+  readImage: (path: string) => Promise<string | null>;
+  startWatch: (paths: string[], recursive: boolean) => void;
   onFilesChanged: (cb: () => void) => () => void;
 }
 

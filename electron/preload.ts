@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('localUpdater', {
     recursive: boolean,
     excludeKeywords: string[],
   ) => ipcRenderer.invoke('scan-folders', folders, recursive, excludeKeywords),
+  readImage: (path: string) => ipcRenderer.invoke('read-image', path),
+  startWatch: (paths: string[], recursive: boolean) =>
+    ipcRenderer.send('start-watch', paths, recursive),
   onFilesChanged: (cb: () => void) => {
     ipcRenderer.on('files-changed', cb);
     return () => ipcRenderer.off('files-changed', cb);

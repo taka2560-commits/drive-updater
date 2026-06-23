@@ -37,6 +37,7 @@ export type FileTypeFilter =
 
 export type SortKey = 'modified' | 'name' | 'size';
 export type SortDir = 'asc' | 'desc';
+export type ViewMode = 'list' | 'grid';
 
 export type Screen = 'main' | 'starred' | 'settings';
 export type SettingsTab = 'appearance' | 'exclude' | 'folders' | 'about';

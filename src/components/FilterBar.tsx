@@ -21,6 +21,10 @@ export function FilterBar({
     countByType,
     rescan,
     isScanning,
+    recursive,
+    setRecursive,
+    viewMode,
+    setViewMode,
   } = useStore();
 
   return (
@@ -86,7 +90,12 @@ export function FilterBar({
             cursor: 'pointer',
           }}
         >
-          <input type="checkbox" style={{ accentColor: 'var(--color-accent)' }} />
+          <input
+            type="checkbox"
+            checked={recursive}
+            onChange={(e) => setRecursive(e.target.checked)}
+            style={{ accentColor: 'var(--color-accent)' }}
+          />
           サブフォルダも
         </label>
 
@@ -101,8 +110,8 @@ export function FilterBar({
             border: '1px solid var(--color-border)',
           }}
         >
-          <ViewToggle active Icon={List} label="リスト" />
-          <ViewToggle active={false} Icon={LayoutGrid} label="グリッド" />
+          <ViewToggle active={viewMode === 'list'} Icon={List} label="リスト" onClick={() => setViewMode('list')} />
+          <ViewToggle active={viewMode === 'grid'} Icon={LayoutGrid} label="グリッド" onClick={() => setViewMode('grid')} />
         </div>
       </div>
 
@@ -150,13 +159,16 @@ function ViewToggle({
   active,
   Icon,
   label,
+  onClick,
 }: {
   active: boolean;
   Icon: typeof List;
   label: string;
+  onClick: () => void;
 }) {
   return (
     <button
+      onClick={onClick}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

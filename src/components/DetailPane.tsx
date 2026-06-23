@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Star, X, ExternalLink, FolderOpen, Copy, History, MousePointerClick } from 'lucide-react';
 import { Button } from './ui';
 import { useStore } from '../storeContext';
@@ -97,6 +98,27 @@ function Detail({ file }: { file: FileEntry }) {
   const meta = fileMeta(file.ext);
   const isImage = matchesType(file.ext, 'image');
 
+  // Load a real thumbnail for images via Electron (null in browser/dev mode).
+  // State is tagged with the source path so a stale async result for a
+  // previously-selected file is never shown after switching selection.
+  const [preview, setPreview] = useState<{ path: string; data: string } | null>(null);
+  const [dimensions, setDimensions] = useState<{ path: string; value: string } | null>(null);
+  useEffect(() => {
+    if (!isImage || file.isDir) return;
+    const api = (window as unknown as { localUpdater?: { readImage: (p: string) => Promise<string | null> } }).localUpdater;
+    if (!api?.readImage) return;
+    let cancelled = false;
+    api.readImage(file.path).then((data) => {
+      if (!cancelled && data) setPreview({ path: file.path, data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file.path, isImage, file.isDir]);
+
+  const previewSrc = preview && preview.path === file.path ? preview.data : null;
+  const dimsLabel = dimensions && dimensions.path === file.path ? dimensions.value : null;
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: 18 }}>
       {/* Preview */}
@@ -115,20 +137,48 @@ function Detail({ file }: { file: FileEntry }) {
           overflow: 'hidden',
         }}
       >
-        <div
-          style={{
-            position: 'relative',
-            textAlign: 'center',
-            color: 'var(--color-muted)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <meta.Icon size={40} color={isImage ? 'var(--color-sec-text)' : meta.color} />
-          <div style={{ fontSize: 11 }}>{isImage ? '1920 × 1080' : meta.label}</div>
-        </div>
+        {previewSrc ? (
+          <img
+            src={previewSrc}
+            alt={file.name}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              setDimensions({ path: file.path, value: `${img.naturalWidth} × ${img.naturalHeight}` });
+            }}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'relative',
+              textAlign: 'center',
+              color: 'var(--color-muted)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <meta.Icon size={40} color={isImage ? 'var(--color-sec-text)' : meta.color} />
+            <div style={{ fontSize: 11 }}>{meta.label}</div>
+          </div>
+        )}
+        {dimsLabel && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              left: 8,
+              background: 'rgba(0,0,0,0.6)',
+              color: '#fff',
+              fontSize: 10,
+              padding: '2px 6px',
+              borderRadius: 3,
+            }}
+          >
+            {dimsLabel}
+          </div>
+        )}
         <div
           style={{
             position: 'absolute',

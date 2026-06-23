@@ -8,6 +8,7 @@ import type {
   SettingsTab,
   SortDir,
   SortKey,
+  ViewMode,
 } from './types';
 import type { ThemeName } from './theme/tokens';
 
@@ -42,6 +43,12 @@ export interface Store {
   setSearchQuery: (q: string) => void;
   typeFilter: FileTypeFilter;
   setTypeFilter: (f: FileTypeFilter) => void;
+
+  // Scan options
+  recursive: boolean;
+  setRecursive: (v: boolean) => void;
+  viewMode: ViewMode;
+  setViewMode: (v: ViewMode) => void;
 
   sortKey: SortKey;
   sortDir: SortDir;

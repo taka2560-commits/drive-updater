@@ -151,19 +151,40 @@ ipcMain.handle(
   },
 );
 
-// ファイル監視 (Chokidar)
+// 画像プレビュー: Base64 データURLを返す
+ipcMain.handle('read-image', async (_e, filePath: string) => {
+  try {
+    const data = fs.readFileSync(filePath);
+    const ext = extname(filePath).slice(1).toLowerCase();
+    const mime = ext === 'jpg' ? 'jpeg' : ext === 'svg' ? 'svg+xml' : ext;
+    return `data:image/${mime};base64,${data.toString('base64')}`;
+  } catch {
+    return null;
+  }
+});
+
+// ファイル監視 (Chokidar) — 複数フォルダを監視し、変更をデバウンスして通知
 let watcher: chokidar.FSWatcher | null = null;
-ipcMain.on('start-watch', (_e, dir: string) => {
-  if (!dir) return;
+let notifyTimer: NodeJS.Timeout | null = null;
+
+ipcMain.on('start-watch', (_e, paths: string[], recursive = false) => {
+  const valid = (paths ?? []).filter((p) => p && fs.existsSync(p));
+  if (valid.length === 0) return;
+
   if (watcher) watcher.close();
-  watcher = chokidar.watch(dir, {
-    ignored: /(^|[/\\])\../,
+  watcher = chokidar.watch(valid, {
+    ignored: /(^|[/\\])\../, // dotfiles
     persistent: true,
-    depth: 0,
+    ignoreInitial: true,
+    depth: recursive ? undefined : 0,
   });
+
   watcher.on('all', (_eventName, filePath) => {
-    if (win && !basename(filePath).startsWith('.')) {
-      win.webContents.send('files-changed');
-    }
+    if (basename(filePath).startsWith('.')) return;
+    // Debounce: filesystem bursts collapse into one renderer refresh.
+    if (notifyTimer) clearTimeout(notifyTimer);
+    notifyTimer = setTimeout(() => {
+      if (win) win.webContents.send('files-changed');
+    }, 300);
   });
 });

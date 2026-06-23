@@ -8,6 +8,7 @@ import type {
   SettingsTab,
   SortDir,
   SortKey,
+  ViewMode,
 } from './types';
 import { applyTheme, loadSavedTheme, type ThemeName } from './theme/tokens';
 import { matchesType } from './lib/fileType';
@@ -30,6 +31,8 @@ interface LocalUpdaterAPI {
     recursive: boolean,
     excludeKeywords: string[],
   ) => Promise<FileEntry[]>;
+  readImage: (path: string) => Promise<string | null>;
+  startWatch: (paths: string[], recursive: boolean) => void;
   onFilesChanged: (cb: () => void) => () => void;
 }
 
@@ -60,7 +63,17 @@ const K = {
   sortKey: 'localUpdater.sortKey',
   sortDir: 'localUpdater.sortDir',
   customFolders: 'localUpdater.customFolders',
+  recursive: 'localUpdater.recursive',
+  viewMode: 'localUpdater.viewMode',
 } as const;
+
+/** Merge two file lists, de-duplicating by path (later wins). */
+function mergeByPath(base: FileEntry[], extra: FileEntry[]): FileEntry[] {
+  const map = new Map<string, FileEntry>();
+  for (const f of base) map.set(f.path, f);
+  for (const f of extra) map.set(f.path, f);
+  return [...map.values()];
+}
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(loadSavedTheme);
@@ -83,6 +96,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FileTypeFilter>('all');
+  const [recursive, setRecursiveState] = useState<boolean>(() =>
+    loadJSON<boolean>(K.recursive, false),
+  );
+  const [viewMode, setViewModeState] = useState<ViewMode>(() =>
+    loadJSON<ViewMode>(K.viewMode, 'list'),
+  );
 
   const [sortKey, setSortKey] = useState<SortKey>(() =>
     loadJSON<SortKey>(K.sortKey, 'modified'),
@@ -106,6 +125,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const setTheme = (t: ThemeName) => setThemeState(t);
 
+  // Refs to keep latest values in scan/watch closures (synced in effects).
+  const excludeRef = useRef(excludeKeywords);
+  const foldersRef = useRef(folders);
+  const recursiveRef = useRef(recursive);
+  // Folders the user has drilled into — re-scanned on every rescan so the
+  // hierarchy stays populated (and watch refreshes keep them current).
+  const expandedRef = useRef<Set<string>>(new Set());
+  useEffect(() => { excludeRef.current = excludeKeywords; }, [excludeKeywords]);
+  useEffect(() => { foldersRef.current = folders; }, [folders]);
+  useEffect(() => { recursiveRef.current = recursive; }, [recursive]);
+
+  // Unified scan: roots (+ expanded sub-folders), then merge.
+  const doScan = useCallback(() => {
+    const api = getAPI();
+    if (!api) {
+      setIsScanning(true);
+      window.setTimeout(() => {
+        setAllFiles(buildSampleFiles());
+        setIsScanning(false);
+      }, 400);
+      return;
+    }
+    setIsScanning(true);
+    const rec = recursiveRef.current;
+    const exclude = excludeRef.current;
+    const rootList = foldersRef.current.map((f) => ({ key: f.key, path: f.path }));
+
+    api
+      .scanFolders(rootList, rec, exclude)
+      .then(async (rootFiles) => {
+        let result = rootFiles;
+        // Lazily-loaded sub-folders (only needed in non-recursive mode).
+        if (!rec && expandedRef.current.size > 0) {
+          const subList = [...expandedRef.current].map((p) => ({
+            key: foldersRef.current.find((f) => p.startsWith(f.path))?.key ?? 'desktop',
+            path: p,
+          }));
+          const subFiles = await api.scanFolders(subList, false, exclude);
+          result = mergeByPath(rootFiles, subFiles);
+        }
+        setAllFiles(result);
+        setIsScanning(false);
+      })
+      .catch(() => {
+        setAllFiles(buildSampleFiles());
+        setIsScanning(false);
+      });
+  }, []);
+
+  const rescan = useCallback(() => doScan(), [doScan]);
+
   const setActiveFolder = (k: FolderKey) => {
     setActiveFolderState(k);
     setBrowsePath(null);
@@ -114,17 +184,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTypeFilter('all');
   };
 
-  const browseInto = useCallback((path: string) => {
-    setBrowsePath(path);
-    setSelected(null);
-    setSearchQuery('');
-    setTypeFilter('all');
-  }, []);
+  // Drill into a sub-folder: remember it, lazy-scan its contents, then show it.
+  const browseInto = useCallback(
+    (path: string) => {
+      setBrowsePath(path);
+      setSelected(null);
+      setSearchQuery('');
+      setTypeFilter('all');
+      const api = getAPI();
+      if (api && !recursiveRef.current) {
+        expandedRef.current.add(path);
+        const key = foldersRef.current.find((f) => path.startsWith(f.path))?.key ?? 'desktop';
+        setIsScanning(true);
+        api
+          .scanFolders([{ key, path }], false, excludeRef.current)
+          .then((sub) => {
+            setAllFiles((prev) => mergeByPath(prev, sub));
+            setIsScanning(false);
+          })
+          .catch(() => setIsScanning(false));
+      }
+    },
+    [],
+  );
 
   const browseUp = useCallback(() => {
     setBrowsePath(null);
     setSelected(null);
   }, []);
+
+  const setRecursive = (v: boolean) => {
+    setRecursiveState(v);
+    recursiveRef.current = v;
+    saveJSON(K.recursive, v);
+    doScan();
+  };
+
+  const setViewMode = (v: ViewMode) => {
+    setViewModeState(v);
+    saveJSON(K.viewMode, v);
+  };
 
   const toggleSort = (k: SortKey) => {
     if (k === sortKey) {
@@ -188,99 +287,80 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Refs to keep latest values in rescan closure (synced in effects, not during render)
-  const excludeRef = useRef(excludeKeywords);
-  const foldersRef = useRef(folders);
-  useEffect(() => { excludeRef.current = excludeKeywords; }, [excludeKeywords]);
-  useEffect(() => { foldersRef.current = folders; }, [folders]);
-
-  const rescan = useCallback(() => {
-    setIsScanning(true);
-    const api = getAPI();
-    if (api) {
-      const folderList = foldersRef.current.map((f) => ({ key: f.key, path: f.path }));
-      api
-        .scanFolders(folderList, false, excludeRef.current)
-        .then((files) => {
-          setAllFiles(files);
-          setIsScanning(false);
-        })
-        .catch(() => {
-          setAllFiles(buildSampleFiles());
-          setIsScanning(false);
-        });
-    } else {
-      window.setTimeout(() => {
-        setAllFiles(buildSampleFiles());
-        setIsScanning(false);
-      }, 650);
-    }
-  }, []);
-
-  // On mount: fetch real OS paths and do initial scan
+  // On mount: fetch real OS paths, do initial scan, start watching.
   useEffect(() => {
     const api = getAPI();
     if (!api) return;
 
     api.getDefaultPaths().then(({ desktop, documents, downloads }) => {
+      const updated = [
+        { key: 'desktop' as FolderKey, path: desktop },
+        { key: 'documents' as FolderKey, path: documents },
+        { key: 'downloads' as FolderKey, path: downloads },
+      ];
       setFolders((prev) =>
         prev.map((f) => {
-          if (f.key === 'desktop') return { ...f, path: desktop };
-          if (f.key === 'documents') return { ...f, path: documents };
-          if (f.key === 'downloads') return { ...f, path: downloads };
-          return f;
+          const u = updated.find((x) => x.key === f.key);
+          return u ? { ...f, path: u.path } : f;
         }),
       );
-      setIsScanning(true);
-      const folderList = [
-        { key: 'desktop', path: desktop },
-        { key: 'documents', path: documents },
-        { key: 'downloads', path: downloads },
-        ...loadJSON<FolderDef[]>(K.customFolders, []).map((f) => ({
-          key: f.key,
-          path: f.path,
-        })),
-      ];
-      api
-        .scanFolders(folderList, false, loadJSON<string[]>(K.exclude, EXCLUDE_KEYWORDS))
-        .then((files) => {
-          setAllFiles(files);
-          setIsScanning(false);
-        })
-        .catch(() => {
-          setAllFiles(buildSampleFiles());
-          setIsScanning(false);
-        });
+      foldersRef.current = foldersRef.current.map((f) => {
+        const u = updated.find((x) => x.key === f.key);
+        return u ? { ...f, path: u.path } : f;
+      });
+
+      doScan();
+
+      // Watch all root folders for changes → debounced rescan (handled in main).
+      const watchPaths = foldersRef.current.map((f) => f.path);
+      api.startWatch(watchPaths, recursiveRef.current);
     });
 
-    const unsub = api.onFilesChanged(rescan);
+    const unsub = api.onFilesChanged(doScan);
     return unsub;
-  }, [rescan]);
+  }, [doScan]);
 
-  // Derived: entries at current browsePath or active folder root
+  // Re-arm the watcher when the folder set changes.
+  useEffect(() => {
+    const api = getAPI();
+    if (!api) return;
+    api.startWatch(folders.map((f) => f.path), recursive);
+  }, [folders, recursive]);
+
+  // Derived: entries at current browsePath or active folder root.
   const folderFiles = useMemo(() => {
     const kw = excludeKeywords;
+    const notExcluded = (f: FileEntry) =>
+      !kw.some((k) => f.path.toLowerCase().includes(k.toLowerCase()));
+
     if (browsePath) {
-      // Direct children of browsePath only
+      const sep = browsePath.includes('\\') ? '\\' : '/';
+      const prefix = browsePath + sep;
       return allFiles.filter((f) => {
-        const sep = browsePath.includes('\\') ? '\\' : '/';
-        if (!f.path.startsWith(browsePath + sep)) return false;
-        const relative = f.path.slice(browsePath.length + sep.length);
-        const isDirectChild =
-          !relative.includes('\\') && !relative.includes('/');
-        return (
-          isDirectChild && !kw.some((k) => f.path.toLowerCase().includes(k.toLowerCase()))
-        );
+        if (!f.path.startsWith(prefix)) return false;
+        if (!notExcluded(f)) return false;
+        if (recursive) return !f.isDir; // flatten: files only
+        const relative = f.path.slice(prefix.length);
+        return !relative.includes('\\') && !relative.includes('/'); // direct children
       });
     }
-    return allFiles.filter(
-      (f) =>
-        f.folder === activeFolder &&
-        !kw.some((k) => f.path.toLowerCase().includes(k.toLowerCase())),
-    );
-  }, [allFiles, activeFolder, browsePath, excludeKeywords]);
 
-  // Count by type (dirs excluded from counts)
+    // Root of the active folder.
+    if (recursive) {
+      return allFiles.filter((f) => f.folder === activeFolder && !f.isDir && notExcluded(f));
+    }
+    return allFiles.filter((f) => {
+      if (f.folder !== activeFolder || !notExcluded(f)) return false;
+      // In non-recursive scans every entry is already a direct child, but guard
+      // against recursive leftovers in allFiles after toggling the option.
+      const root = folders.find((fd) => fd.key === activeFolder)?.path;
+      if (!root) return true;
+      const sep = root.includes('\\') ? '\\' : '/';
+      const relative = f.path.startsWith(root + sep) ? f.path.slice(root.length + sep.length) : f.name;
+      return !relative.includes('\\') && !relative.includes('/');
+    });
+  }, [allFiles, activeFolder, browsePath, excludeKeywords, recursive, folders]);
+
   const searchMatched = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return q ? folderFiles.filter((f) => f.name.toLowerCase().includes(q)) : folderFiles;
@@ -306,7 +386,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [searchMatched]);
 
   const filteredFiles = useMemo(() => {
-    // Dirs always pass type filter; files go through matchesType
     const out = searchMatched.filter((f) => f.isDir || matchesType(f.ext, typeFilter));
     const dir = sortDir === 'asc' ? 1 : -1;
     out.sort((a, b) => {
@@ -349,6 +428,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     typeFilter,
     setTypeFilter,
+    recursive,
+    setRecursive,
+    viewMode,
+    setViewMode,
     sortKey,
     sortDir,
     toggleSort,

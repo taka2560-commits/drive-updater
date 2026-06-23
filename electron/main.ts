@@ -21,7 +21,7 @@ function createWindow() {
     backgroundColor: '#222629',
     icon: fs.existsSync(devIcon) ? devIcon : undefined,
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: join(__dirname, 'preload.cjs'),
     },
   });
 

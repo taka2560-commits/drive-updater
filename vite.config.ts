@@ -18,6 +18,18 @@ export default defineConfig({
           // Reload the renderer when the preload script changes.
           args.reload();
         },
+        vite: {
+          build: {
+            // Electron preload scripts run with sandbox enabled by default,
+            // which requires CommonJS. Build as a CJS lib so it emits
+            // preload.cjs with require() (not ESM import) under "type":"module".
+            lib: {
+              entry: 'electron/preload.ts',
+              formats: ['cjs'],
+              fileName: () => 'preload.cjs',
+            },
+          },
+        },
       },
     ]),
     renderer(),

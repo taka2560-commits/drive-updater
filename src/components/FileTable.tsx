@@ -1,5 +1,15 @@
-import { useState, type CSSProperties } from 'react';
-import { Star, ChevronsUpDown, ChevronUp, ChevronDown, Folder, ChevronRight } from 'lucide-react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import {
+  Star,
+  ChevronsUpDown,
+  ChevronUp,
+  ChevronDown,
+  Folder,
+  ChevronRight,
+  ExternalLink,
+  FolderOpen,
+  Copy,
+} from 'lucide-react';
 import { useStore } from '../storeContext';
 import { fileMeta } from '../lib/fileType';
 import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
@@ -16,6 +26,17 @@ const TH: CSSProperties = {
   cursor: 'pointer',
 };
 
+// Electron preload bridge (undefined in browser dev mode).
+function api() {
+  return (window as unknown as { localUpdater?: Window['localUpdater'] }).localUpdater;
+}
+
+interface MenuState {
+  x: number;
+  y: number;
+  file: FileEntry;
+}
+
 export function FileTable() {
   const {
     filteredFiles,
@@ -30,6 +51,14 @@ export function FileTable() {
     folders,
     browseInto,
   } = useStore();
+
+  const [menu, setMenu] = useState<MenuState | null>(null);
+
+  const openMenu = (e: React.MouseEvent, file: FileEntry) => {
+    e.preventDefault();
+    setSelected(file.path);
+    setMenu({ x: e.clientX, y: e.clientY, file });
+  };
 
   if (isScanning && filteredFiles.length === 0) {
     return <Skeleton />;
@@ -56,6 +85,7 @@ export function FileTable() {
                 selected={selectedPath === f.path}
                 onSelect={() => setSelected(f.path)}
                 onOpen={() => browseInto(f.path)}
+                onContextMenu={(e) => openMenu(e, f)}
                 folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
               />
             ) : (
@@ -66,13 +96,173 @@ export function FileTable() {
                 starred={isStarred(f.path)}
                 onSelect={() => setSelected(f.path)}
                 onToggleStar={() => toggleStar(f.path)}
+                onContextMenu={(e) => openMenu(e, f)}
                 folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
               />
             ),
           )}
         </tbody>
       </table>
+
+      {menu && (
+        <ContextMenu
+          state={menu}
+          starred={isStarred(menu.file.path)}
+          onClose={() => setMenu(null)}
+          onOpenFolder={() => browseInto(menu.file.path)}
+          onToggleStar={() => toggleStar(menu.file.path)}
+        />
+      )}
     </div>
+  );
+}
+
+// 右クリックメニュー（普通のエクスプローラー相当）
+function ContextMenu({
+  state,
+  starred,
+  onClose,
+  onOpenFolder,
+  onToggleStar,
+}: {
+  state: MenuState;
+  starred: boolean;
+  onClose: () => void;
+  onOpenFolder: () => void;
+  onToggleStar: () => void;
+}) {
+  const { x, y, file } = state;
+
+  // Close on any outside click / Escape.
+  useEffect(() => {
+    const onDown = () => onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top: y,
+        left: x,
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 8,
+        boxShadow: 'var(--shadow-md)',
+        zIndex: 100,
+        padding: 4,
+        minWidth: 190,
+      }}
+    >
+      <div
+        style={{
+          padding: '7px 12px 8px',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--color-muted)',
+          borderBottom: '1px solid var(--color-border)',
+          marginBottom: 4,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {file.name}
+      </div>
+
+      {file.isDir ? (
+        <MenuItem
+          Icon={Folder}
+          label="フォルダを開く"
+          onClick={() => {
+            onOpenFolder();
+            onClose();
+          }}
+        />
+      ) : (
+        <MenuItem
+          Icon={ExternalLink}
+          label="開く"
+          onClick={() => {
+            api()?.openPath(file.path);
+            onClose();
+          }}
+        />
+      )}
+
+      <MenuItem
+        Icon={FolderOpen}
+        label="保存場所を開く"
+        onClick={() => {
+          api()?.showInFolder(file.path);
+          onClose();
+        }}
+      />
+
+      {!file.isDir && (
+        <MenuItem
+          Icon={Star}
+          label={starred ? 'スターを外す' : 'スターをつける'}
+          onClick={() => {
+            onToggleStar();
+            onClose();
+          }}
+        />
+      )}
+
+      <MenuItem
+        Icon={Copy}
+        label="パスをコピー"
+        onClick={() => {
+          navigator.clipboard?.writeText(file.path).catch(() => {});
+          onClose();
+        }}
+      />
+    </div>
+  );
+}
+
+function MenuItem({
+  Icon,
+  label,
+  onClick,
+}: {
+  Icon: typeof Copy;
+  label: string;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        padding: '7px 12px',
+        fontSize: 12,
+        border: 'none',
+        background: hovered ? 'var(--color-bg)' : 'transparent',
+        color: 'var(--color-text)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        borderRadius: 4,
+        fontFamily: 'var(--font-sans)',
+      }}
+    >
+      <Icon size={14} style={{ flexShrink: 0, color: 'var(--color-muted)' }} />
+      {label}
+    </button>
   );
 }
 
@@ -121,12 +311,14 @@ function FolderRow({
   selected,
   onSelect,
   onOpen,
+  onContextMenu,
   folderLabel,
 }: {
   file: FileEntry;
   selected: boolean;
   onSelect: () => void;
   onOpen: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
   folderLabel: string;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -142,6 +334,7 @@ function FolderRow({
       aria-selected={selected}
       onClick={onSelect}
       onDoubleClick={onOpen}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -193,6 +386,7 @@ function Row({
   starred,
   onSelect,
   onToggleStar,
+  onContextMenu,
   folderLabel,
 }: {
   file: FileEntry;
@@ -200,6 +394,7 @@ function Row({
   starred: boolean;
   onSelect: () => void;
   onToggleStar: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
   folderLabel: string;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -217,6 +412,7 @@ function Row({
       role="row"
       aria-selected={selected}
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

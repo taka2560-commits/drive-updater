@@ -1,157 +1,256 @@
-import React from 'react';
-import { ExternalLink, FolderOpen, Star, Copy, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { FileData } from './types';
-import { TYPE_CONFIG } from './types';
+import { useEffect, useMemo, useState } from 'react';
+import { Star, X, ExternalLink, FolderOpen, Copy, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { useStore } from '../storeContext';
+import { fileMeta, matchesType, isTextPreviewable } from '../lib/fileType';
+import { formatBytes, formatDateTime, formatRelativeTime } from '../lib/format';
+import { Button } from './ui';
+import type { FileEntry } from '../types';
 
-interface DetailModalProps {
-  selectedFile: FileData;
-  previewImage: string | null;
-  starredPaths: string[];
-  toggleStar: (path: string, e?: React.MouseEvent) => void;
-  copyToClipboard: (text: string) => void;
-  copied: boolean;
-  onClose: () => void;
-  allFiles: FileData[];
-  onNavigate: (newFile: FileData) => void;
-}
+/** C-layout: full-width modal detail with prev/next navigation. */
+export function DetailModal({ file }: { file: FileEntry }) {
+  const { filteredFiles, setSelected, isStarred, toggleStar, requestDelete } = useStore();
 
-export function DetailModal({
-  selectedFile, previewImage, starredPaths, toggleStar, copyToClipboard, copied, onClose, allFiles, onNavigate
-}: DetailModalProps) {
-  const isStarred = starredPaths.includes(selectedFile.path);
+  const index = useMemo(() => filteredFiles.findIndex((f) => f.path === file.path), [filteredFiles, file.path]);
+  const hasPrev = index > 0;
+  const hasNext = index >= 0 && index < filteredFiles.length - 1;
+  const goPrev = () => hasPrev && setSelected(filteredFiles[index - 1].path);
+  const goNext = () => hasNext && setSelected(filteredFiles[index + 1].path);
+  const close = () => setSelected(null);
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
+  const meta = fileMeta(file.ext);
+  const isImage = matchesType(file.ext, 'image');
+  const isText = !file.isDir && isTextPreviewable(file.ext);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-  };
+  // Image thumbnail (Electron only), tagged by path to avoid stale results.
+  const [preview, setPreview] = useState<{ path: string; data: string } | null>(null);
+  const [text, setText] = useState<{ path: string; data: string } | null>(null);
+  useEffect(() => {
+    if (!isImage || file.isDir) return;
+    const api = window.localUpdater;
+    if (!api?.readImage) return;
+    let cancelled = false;
+    api.readImage(file.path).then((data) => {
+      if (!cancelled && data) setPreview({ path: file.path, data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file.path, isImage, file.isDir]);
+  useEffect(() => {
+    if (!isText) return;
+    const api = window.localUpdater;
+    if (!api?.readText) return;
+    let cancelled = false;
+    api.readText(file.path).then((data) => {
+      if (!cancelled && data != null) setText({ path: file.path, data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file.path, isText]);
+  const previewSrc = preview && preview.path === file.path ? preview.data : null;
+  const textSrc = text && text.path === file.path ? text.data : null;
 
-  const IconComp = TYPE_CONFIG[selectedFile.type]?.icon || TYPE_CONFIG.other.icon;
-
-  // Navigation logic
-  const currentIndex = allFiles.findIndex(f => f.id === selectedFile.id);
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex < allFiles.length - 1 && currentIndex !== -1;
-
-  const handlePrev = () => { if (hasPrev) onNavigate(allFiles[currentIndex - 1]); };
-  const handleNext = () => { if (hasNext) onNavigate(allFiles[currentIndex + 1]); };
+  // Keyboard (SPEC_C §6.5).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          close();
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          e.preventDefault();
+          goPrev();
+          break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+          e.preventDefault();
+          goNext();
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          window.localUpdater?.openPath(file.path);
+          break;
+        case 's':
+        case 'S':
+          if (!file.isDir) toggleStar(file.path);
+          break;
+        case 'o':
+        case 'O':
+          window.localUpdater?.showInFolder(file.path);
+          break;
+        case 'c':
+        case 'C':
+          navigator.clipboard?.writeText(file.path).catch(() => {});
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, file.path, filteredFiles.length]);
 
   return (
-    <div 
+    <div
+      onClick={close}
       style={{
-        position: 'fixed', inset: '32px 0 0 0', zIndex: 100,
-        backgroundColor: 'rgba(34,38,41,0.65)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center'
+        position: 'fixed',
+        inset: '32px 0 0 0',
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 200,
+        animation: 'lu-expand 150ms ease-out',
       }}
-      onClick={onClose}
     >
-      <div 
-        style={{
-          width: '760px', minHeight: '400px', maxHeight: 'min(640px, 80vh)',
-          backgroundColor: 'var(--color-bg)',
-          borderRadius: '12px',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden'
-        }}
+      <div
         onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 760,
+          maxWidth: '92vw',
+          height: 'min(640px, 80vh)',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 12,
+          boxShadow: 'var(--shadow-lg)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-          <IconComp size={24} style={{ color: TYPE_CONFIG[selectedFile.type]?.color || 'var(--color-muted)', marginRight: '16px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: '1px solid var(--color-border)' }}>
+          <meta.Icon size={20} color={meta.color} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {selectedFile.name}
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {file.name}
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--color-muted)', marginTop: '4px' }}>
-              {TYPE_CONFIG[selectedFile.type]?.label || TYPE_CONFIG.other.label} · {formatBytes(selectedFile.size)} · デスクトップ
+            <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+              {file.isDir ? 'フォルダ' : `${meta.label} · ${formatBytes(file.sizeBytes)}`}
             </div>
           </div>
-          <Star 
-            size={20} 
-            style={{ cursor: 'pointer', color: isStarred ? 'var(--color-accent)' : 'var(--color-muted)', fill: isStarred ? 'var(--color-accent)' : 'none', margin: '0 16px' }} 
-            onClick={(e) => toggleStar(selectedFile.path, e)}
-          />
-          <X size={20} style={{ cursor: 'pointer', color: 'var(--color-muted)' }} onClick={onClose} />
+          {!file.isDir && (
+            <button onClick={() => toggleStar(file.path)} aria-label="スター切替" style={iconBtn}>
+              <Star size={15} color={isStarred(file.path) ? 'var(--color-accent)' : 'var(--color-muted)'} fill={isStarred(file.path) ? 'var(--color-accent)' : 'none'} />
+            </button>
+          )}
+          <button onClick={close} aria-label="閉じる" style={iconBtn}>
+            <X size={15} color="var(--color-muted)" />
+          </button>
         </div>
 
-        {/* Body (2 columns) */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          {/* Left Preview */}
-          <div style={{ width: '320px', borderRight: '1px solid var(--color-border)', backgroundColor: 'var(--color-log-bg)', padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {previewImage ? (
-              <img src={previewImage} alt="preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+        {/* Body */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* Preview */}
+          <div style={{ width: 320, flexShrink: 0, background: 'var(--color-log-bg)', borderRight: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: previewSrc || textSrc != null ? 0 : 16 }}>
+            {previewSrc ? (
+              <img src={previewSrc} alt={file.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: 16 }} />
+            ) : textSrc != null ? (
+              <pre
+                style={{
+                  margin: 0,
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'auto',
+                  padding: 14,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  color: 'var(--color-text)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {textSrc}
+              </pre>
             ) : (
-              <div style={{ textAlign: 'center', color: 'var(--color-muted)' }}>
-                <IconComp size={64} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                <div style={{ fontSize: '12px' }}>プレビューなし</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--color-muted)' }}>
+                <meta.Icon size={56} color={meta.color} />
+                <span style={{ fontSize: 11 }}>{meta.label}</span>
               </div>
             )}
           </div>
 
-          {/* Right Info */}
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
-            <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-text)', marginBottom: '16px' }}>ファイル情報</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '12px', fontSize: '12px', color: 'var(--color-text)', marginBottom: '32px' }}>
-              <div style={{ color: 'var(--color-muted)' }}>最終更新</div>
-              <div>{formatDate(selectedFile.updated)}</div>
-              <div style={{ color: 'var(--color-muted)' }}>アクセス</div>
-              <div>{formatDate(selectedFile.accessed)}</div>
-              <div style={{ color: 'var(--color-muted)' }}>作成</div>
-              <div>{formatDate(selectedFile.created)}</div>
-              <div style={{ color: 'var(--color-muted)' }}>サイズ</div>
-              <div>{formatBytes(selectedFile.size)}</div>
+          {/* Info */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+            <SectionLabel>ファイル情報</SectionLabel>
+            <InfoRow label="最終更新" value={`${formatDateTime(file.modifiedAt)}（${formatRelativeTime(file.modifiedAt)}）`} />
+            <InfoRow label="アクセス" value={formatDateTime(file.accessedAt)} />
+            <InfoRow label="作成" value={formatDateTime(file.createdAt)} />
+            {!file.isDir && <InfoRow label="サイズ" value={`${file.sizeBytes.toLocaleString()} bytes`} />}
+
+            <div style={{ height: 16 }} />
+            <SectionLabel>パス</SectionLabel>
+            <div style={{ background: 'var(--color-log-bg)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-muted)', wordBreak: 'break-all', lineHeight: 1.5 }}>
+              {file.path}
             </div>
 
-            <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-text)', marginBottom: '12px' }}>パス</div>
-            <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '12px', fontSize: '11px', color: 'var(--color-muted)', wordBreak: 'break-all', marginBottom: '24px' }}>
-              {selectedFile.path}
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => (window as any).electronAPI?.openFile(selectedFile.path)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <ExternalLink size={16} /> 開く
-              </button>
-              <button onClick={() => (window as any).electronAPI?.openFolder(selectedFile.path)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <FolderOpen size={16} /> 保存場所
-              </button>
-              <button onClick={() => copyToClipboard(selectedFile.path)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--color-surface-2)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <Copy size={16} /> {copied ? 'コピー済' : 'パスコピー'}
-              </button>
+            <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap' }}>
+              <Button variant="primary" size="md" Icon={file.isDir ? FolderOpen : ExternalLink} onClick={() => window.localUpdater?.openPath(file.path)}>
+                {file.isDir ? 'フォルダを開く' : '開く'}
+              </Button>
+              {!file.isDir && (
+                <>
+                  <Button variant="secondary" size="md" Icon={FolderOpen} onClick={() => window.localUpdater?.showInFolder(file.path)}>
+                    保存場所
+                  </Button>
+                  <Button variant="secondary" size="md" Icon={Copy} onClick={() => navigator.clipboard?.writeText(file.path).catch(() => {})}>
+                    パスをコピー
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" size="md" Icon={Trash2} style={{ color: '#D46A6A' }} onClick={() => requestDelete([file.path])}>
+                ゴミ箱
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Footer Navigation */}
-        <div style={{ padding: '12px 24px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button 
-              disabled={!hasPrev} onClick={handlePrev}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: hasPrev ? 'var(--color-text)' : 'var(--color-disabled)', cursor: hasPrev ? 'pointer' : 'default', fontSize: '12px' }}
-            >
-              <ChevronLeft size={16} /> 前のファイル
-            </button>
-            <span style={{ fontSize: '12px', color: 'var(--color-muted)' }}>
-              {currentIndex + 1} / {allFiles.length}
-            </span>
-            <button 
-              disabled={!hasNext} onClick={handleNext}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: hasNext ? 'var(--color-text)' : 'var(--color-disabled)', cursor: hasNext ? 'pointer' : 'default', fontSize: '12px' }}
-            >
-              次のファイル <ChevronRight size={16} />
-            </button>
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--color-muted)' }}>
-            ESC で閉じる
-          </div>
+        {/* Footer nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: '1px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
+          <Button variant="ghost" size="sm" Icon={ChevronLeft} disabled={!hasPrev} onClick={goPrev}>
+            前のファイル
+          </Button>
+          <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+            {index >= 0 ? `${index + 1} / ${filteredFiles.length}` : ''}
+          </span>
+          <Button variant="ghost" size="sm" disabled={!hasNext} onClick={goNext}>
+            次のファイル
+            <ChevronRight size={13} />
+          </Button>
+          <div style={{ flex: 1 }} />
+          <span style={{ fontSize: 10, color: 'var(--color-disabled)' }}>ESC で閉じる</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+const iconBtn: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  padding: 4,
+};
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-disabled)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, fontSize: 12, padding: '4px 0' }}>
+      <span style={{ width: 72, flexShrink: 0, color: 'var(--color-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--color-text)' }}>{value}</span>
     </div>
   );
 }

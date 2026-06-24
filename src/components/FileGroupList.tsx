@@ -1,156 +1,262 @@
-import React, { useState, useMemo } from 'react';
-import { Star, ExternalLink, FolderOpen, Copy } from 'lucide-react';
-import type { FileData } from './types';
-import { TYPE_CONFIG } from './types';
-import { groupByTime } from '../lib/grouping';
+import { useMemo, useState } from 'react';
+import { Star, ChevronDown, ChevronUp, ExternalLink, FolderOpen, Copy } from 'lucide-react';
+import { useStore } from '../storeContext';
+import { groupByTime, type FileGroup } from '../lib/grouping';
+import { fileMeta } from '../lib/fileType';
+import { formatBytes, formatRelativeTime, formatDateTime, isRecent } from '../lib/format';
+import { Button } from './ui';
+import type { FileEntry } from '../types';
 
-interface FileGroupListProps {
-  files: FileData[];
-  starredPaths: string[];
-  toggleStar: (path: string, e?: React.MouseEvent) => void;
-  copyToClipboard: (text: string) => void;
-  copied: boolean;
-}
+/** B-layout: time-grouped, accordion-expandable file cards. */
+export function FileGroupList() {
+  const { filteredFiles, folders, isStarred, toggleStar, browseInto } = useStore();
+  const [expandedPath, setExpandedPath] = useState<string | null>(null);
 
-export function FileGroupList({ files, starredPaths, toggleStar, copyToClipboard, copied }: FileGroupListProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
+  const dirs = useMemo(() => filteredFiles.filter((f) => f.isDir), [filteredFiles]);
+  const files = useMemo(() => filteredFiles.filter((f) => !f.isDir), [filteredFiles]);
   const groups = useMemo(() => groupByTime(files), [files]);
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-  };
-
-  if (files.length === 0) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-muted)' }}>ファイルが見つかりません。</div>;
+  function makeCard(f: FileEntry) {
+    return (
+      <FileCard
+        key={f.path}
+        file={f}
+        folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+        expanded={expandedPath === f.path}
+        starred={!f.isDir && isStarred(f.path)}
+        onToggle={() => setExpandedPath((prev) => (prev === f.path ? null : f.path))}
+        onOpen={() => (f.isDir ? browseInto(f.path) : window.localUpdater?.openPath(f.path))}
+        onToggleStar={() => toggleStar(f.path)}
+      />
+    );
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '0 32px 40px', backgroundColor: 'var(--color-bg)' }}>
-      {groups.map(group => (
-        <div key={group.key} style={{ marginBottom: '32px' }}>
-          
-          {/* グループヘッダ */}
-          <div style={{ display: 'flex', alignItems: 'center', height: '36px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--color-text)', marginRight: '8px' }}>{group.label}</span>
-            <span style={{ fontSize: '11px', color: 'var(--color-muted)' }}>{group.subLabel}</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)', margin: '0 16px' }} />
-            <span style={{ fontSize: '11px', color: group.key === 'today' ? 'var(--color-accent)' : 'var(--color-muted)' }}>
-              {group.files.length}件 · {formatBytes(group.totalBytes)}
-            </span>
+    <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', padding: '8px 32px 24px' }}>
+      {dirs.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <FolderGroupHeader count={dirs.length} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {dirs.map(makeCard)}
           </div>
-
-          {/* ファイルカード群 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {group.files.map(file => {
-              const isExpanded = expandedId === file.id;
-              const IconComp = TYPE_CONFIG[file.type]?.icon || TYPE_CONFIG.other.icon;
-              const isStarred = starredPaths.includes(file.path);
-
-              return (
-                <div key={file.id} style={{
-                  backgroundColor: 'var(--color-surface)',
-                  border: `1px solid ${isExpanded ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  transition: 'border-color 0.2s',
-                }}>
-                  {/* カードヘッダ (常に表示) */}
-                  <div 
-                    onClick={() => setExpandedId(isExpanded ? null : file.id)}
-                    style={{
-                      height: '64px', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer'
-                    }}
-                  >
-                    <div style={{ flexShrink: 0, width: '32px', height: '32px', borderRadius: '6px', backgroundColor: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <IconComp size={18} style={{ color: TYPE_CONFIG[file.type]?.color || 'var(--color-muted)' }} />
-                    </div>
-                    
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {file.name}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>
-                        {TYPE_CONFIG[file.type]?.label || TYPE_CONFIG.other.label} · {formatBytes(file.size)}
-                      </div>
-                    </div>
-
-                    <Star 
-                      size={18} 
-                      style={{ flexShrink: 0, cursor: 'pointer', color: isStarred ? 'var(--color-accent)' : 'var(--color-muted)', fill: isStarred ? 'var(--color-accent)' : 'none', marginRight: '8px' }} 
-                      onClick={(e) => toggleStar(file.path, e)}
-                    />
-
-                    <div style={{ fontSize: '11px', color: 'var(--color-muted)', width: '60px', textAlign: 'right' }}>
-                      {/* 簡易的な時間表示 */}
-                      {formatDate(file.updated)}
-                    </div>
-                    
-                    <div style={{ color: 'var(--color-muted)', paddingLeft: '8px' }}>
-                      {isExpanded ? '⌃' : '⌄'}
-                    </div>
-                  </div>
-
-                  {/* カードボディ (展開時のみ) */}
-                  {isExpanded && (
-                    <div style={{
-                      borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)',
-                      display: 'grid', gridTemplateColumns: '220px 1fr', gap: '18px', padding: '16px 18px'
-                    }}>
-                      {/* 左: タイムライン */}
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text)', marginBottom: '12px' }}>タイムライン</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderLeft: '1px solid var(--color-border)', marginLeft: '6px', paddingLeft: '12px' }}>
-                          <div style={{ position: 'relative' }}>
-                            <div style={{ position: 'absolute', left: '-15px', top: '3px', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--color-primary)' }} />
-                            <div style={{ fontSize: '10px', color: 'var(--color-text)' }}>● 最終更新 {formatDate(file.updated)}</div>
-                          </div>
-                          <div style={{ position: 'relative' }}>
-                            <div style={{ position: 'absolute', left: '-15px', top: '3px', width: '7px', height: '7px', borderRadius: '50%', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)' }} />
-                            <div style={{ fontSize: '10px', color: 'var(--color-muted)' }}>○ アクセス {formatDate(file.accessed)}</div>
-                          </div>
-                          <div style={{ position: 'relative' }}>
-                            <div style={{ position: 'absolute', left: '-15px', top: '3px', width: '7px', height: '7px', borderRadius: '50%', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)' }} />
-                            <div style={{ fontSize: '10px', color: 'var(--color-muted)' }}>○ 作成 {formatDate(file.created)}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 右: パス & アクション */}
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--color-text)', marginBottom: '8px' }}>パス</div>
-                        <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '8px', fontSize: '11px', color: 'var(--color-muted)', wordBreak: 'break-all', marginBottom: '16px' }}>
-                          {file.path}
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => (window as any).electronAPI?.openFile(file.path)} style={{ flex: 1, padding: '8px', backgroundColor: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <ExternalLink size={14} /> 開く
-                          </button>
-                          <button onClick={() => (window as any).electronAPI?.openFolder(file.path)} style={{ flex: 1, padding: '8px', backgroundColor: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <FolderOpen size={14} /> 保存場所
-                          </button>
-                          <button onClick={() => copyToClipboard(file.path)} style={{ flex: 1, padding: '8px', backgroundColor: 'transparent', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <Copy size={14} /> {copied ? 'コピー済' : 'パスをコピー'}
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        </div>
+      )}
+      {groups.map((g) => (
+        <div key={g.key} style={{ marginTop: 16 }}>
+          <GroupHeader group={g} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {g.files.map(makeCard)}
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function GroupHeader({ group }: { group: FileGroup }) {
+  const accent = group.key === 'today';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, height: 28 }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>{group.label}</span>
+      {group.subLabel && (
+        <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>{group.subLabel}</span>
+      )}
+      <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+      <span style={{ fontSize: 11, color: accent ? 'var(--color-accent)' : 'var(--color-muted)' }}>
+        {group.files.length}件 · {formatBytes(group.totalBytes)}
+      </span>
+    </div>
+  );
+}
+
+function FolderGroupHeader({ count }: { count: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, height: 28 }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>フォルダ</span>
+      <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+      <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>{count}件</span>
+    </div>
+  );
+}
+
+function FileCard({
+  file,
+  folderLabel,
+  expanded,
+  starred,
+  onToggle,
+  onOpen,
+  onToggleStar,
+}: {
+  file: FileEntry;
+  folderLabel: string;
+  expanded: boolean;
+  starred: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+  onToggleStar: () => void;
+}) {
+  const meta = fileMeta(file.ext);
+  const recent = isRecent(file.modifiedAt);
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-surface)',
+        border: expanded ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
+        borderRadius: 8,
+        overflow: 'hidden',
+        boxShadow: expanded ? 'var(--shadow-sm)' : 'none',
+      }}
+    >
+      {/* Collapsed row */}
+      <div
+        onClick={onToggle}
+        onDoubleClick={onOpen}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          height: 64,
+          padding: '12px 18px',
+          cursor: 'pointer',
+        }}
+      >
+        <meta.Icon size={22} color={meta.color} style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 14,
+              color: 'var(--color-text)',
+              fontWeight: 500,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {file.name}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
+            {file.isDir ? 'フォルダ' : `${meta.label} · ${formatBytes(file.sizeBytes)}`} · {folderLabel}
+          </div>
+        </div>
+        {!file.isDir && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStar();
+            }}
+            aria-label={starred ? 'スターを外す' : 'スターを付ける'}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}
+          >
+            <Star
+              size={15}
+              color={starred ? 'var(--color-accent)' : 'var(--color-disabled)'}
+              fill={starred ? 'var(--color-accent)' : 'none'}
+            />
+          </button>
+        )}
+        <span style={{ fontSize: 12, color: recent ? 'var(--color-accent)' : 'var(--color-muted)', width: 70, textAlign: 'right' }}>
+          {formatRelativeTime(file.modifiedAt)}
+        </span>
+        {expanded ? (
+          <ChevronUp size={16} color="var(--color-muted)" />
+        ) : (
+          <ChevronDown size={16} color="var(--color-muted)" />
+        )}
+      </div>
+
+      {/* Expanded body (lazy mounted) */}
+      {expanded && (
+        <div
+          style={{
+            borderTop: '1px solid var(--color-border)',
+            background: 'var(--color-surface-2)',
+            display: 'grid',
+            gridTemplateColumns: '220px 1fr',
+            gap: 18,
+            padding: '16px 18px',
+            animation: 'lu-expand 180ms ease-out',
+          }}
+        >
+          {/* Timeline */}
+          <div style={{ position: 'relative', paddingLeft: 20 }}>
+            <div style={{ position: 'absolute', left: 5, top: 6, bottom: 6, width: 1, background: 'var(--color-border)' }} />
+            <TimelineNode color="var(--color-accent)" title="最終更新" abs={formatDateTime(file.modifiedAt)} rel={formatRelativeTime(file.modifiedAt)} />
+            <TimelineNode color="var(--color-sec-text)" title="最終アクセス" abs={formatDateTime(file.accessedAt)} />
+            <TimelineNode color="var(--color-muted)" title="作成" abs={formatDateTime(file.createdAt)} last />
+          </div>
+
+          {/* Path + actions */}
+          <div>
+            <div
+              style={{
+                background: 'var(--color-log-bg)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                padding: '8px 10px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                color: 'var(--color-muted)',
+                wordBreak: 'break-all',
+                lineHeight: 1.5,
+                marginBottom: 12,
+              }}
+            >
+              {file.path}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <Button variant="primary" size="md" Icon={file.isDir ? FolderOpen : ExternalLink} onClick={onOpen}>
+                {file.isDir ? 'フォルダを開く' : '開く'}
+              </Button>
+              {!file.isDir && (
+                <>
+                  <Button variant="secondary" size="md" Icon={FolderOpen} onClick={() => window.localUpdater?.showInFolder(file.path)}>
+                    保存場所
+                  </Button>
+                  <Button variant="secondary" size="md" Icon={Copy} onClick={() => navigator.clipboard?.writeText(file.path).catch(() => {})}>
+                    パスをコピー
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimelineNode({
+  color,
+  title,
+  abs,
+  rel,
+  last = false,
+}: {
+  color: string;
+  title: string;
+  abs: string;
+  rel?: string;
+  last?: boolean;
+}) {
+  return (
+    <div style={{ marginBottom: last ? 0 : 14, position: 'relative' }}>
+      <div
+        style={{
+          position: 'absolute',
+          left: -19,
+          top: 3,
+          width: 11,
+          height: 11,
+          background: color,
+          borderRadius: '50%',
+          border: '2px solid var(--color-surface-2)',
+        }}
+      />
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>{title}</div>
+      <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>{abs}</div>
+      {rel && <div style={{ fontSize: 10, color: 'var(--color-accent)', marginTop: 1 }}>{rel}</div>}
     </div>
   );
 }

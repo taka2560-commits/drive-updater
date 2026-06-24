@@ -40,12 +40,20 @@
     "appId": "com.example.localupdater",
     "productName": "LocalUpdater",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "icon": "build/icon.png"
     },
     "files": [
       "dist/**/*",

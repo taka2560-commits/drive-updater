@@ -1,15 +1,24 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld('localUpdater', {
+  openPath: (p: string) => ipcRenderer.invoke('open-path', p),
+  showInFolder: (p: string) => ipcRenderer.invoke('show-in-folder', p),
   getDefaultPaths: () => ipcRenderer.invoke('get-default-paths'),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
-  scanDirectory: (dir: string, recursive: boolean, excludeTerms: string[]) => ipcRenderer.invoke('scan-directory', dir, recursive, excludeTerms),
-  readImage: (filePath: string) => ipcRenderer.invoke('read-image', filePath),
-  openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
-  openFolder: (filePath: string) => ipcRenderer.invoke('open-folder', filePath),
-  startWatch: (dir: string) => ipcRenderer.send('start-watch', dir),
-  onFileChanged: (callback: (event: any, data: any) => void) => {
-    ipcRenderer.on('file-changed', callback)
-    return () => ipcRenderer.removeAllListeners('file-changed')
-  }
-})
+  scanFolders: (
+    folders: { key: string; path: string }[],
+    recursive: boolean,
+    excludeKeywords: string[],
+  ) => ipcRenderer.invoke('scan-folders', folders, recursive, excludeKeywords),
+  readImage: (path: string) => ipcRenderer.invoke('read-image', path),
+  readText: (path: string) => ipcRenderer.invoke('read-text', path),
+  trashItem: (path: string) => ipcRenderer.invoke('trash-item', path),
+  renameItem: (oldPath: string, newName: string) =>
+    ipcRenderer.invoke('rename-item', oldPath, newName),
+  startWatch: (paths: string[], recursive: boolean) =>
+    ipcRenderer.send('start-watch', paths, recursive),
+  onFilesChanged: (cb: () => void) => {
+    ipcRenderer.on('files-changed', cb);
+    return () => ipcRenderer.off('files-changed', cb);
+  },
+});

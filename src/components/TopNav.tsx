@@ -1,70 +1,188 @@
-import { Monitor, FileText, Download, Plus, Star, Settings } from 'lucide-react';
+import { Monitor, FileText, Download, Folder, Plus, Star, Settings, RefreshCw } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useStore } from '../storeContext';
+import type { FolderKey } from '../types';
 
-interface TopNavProps {
-  appMode: "files" | "settings" | "starred";
-  setAppMode: (mode: "files" | "settings" | "starred") => void;
-  currentDir: string;
-  setCurrentDir: (dir: string) => void;
-  defaultPaths: {desktop:string, documents:string, downloads:string} | null;
-  customDirs: {name:string, path:string}[];
-  handleAddFolder: () => void;
-}
+const FOLDER_ICONS: Record<string, LucideIcon> = {
+  desktop: Monitor,
+  documents: FileText,
+  downloads: Download,
+  folder: Folder,
+};
 
-export function TopNav({ appMode, setAppMode, currentDir, setCurrentDir, defaultPaths, customDirs, handleAddFolder }: TopNavProps) {
-  
-  const tabStyle = (active: boolean) => ({
-    display: 'flex', alignItems: 'center', gap: '8px',
-    padding: '0 16px', height: '100%', cursor: 'pointer',
-    color: active ? 'var(--color-text)' : 'var(--color-muted)',
-    borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
-    fontWeight: active ? 'bold' : 'normal',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap' as const,
-  });
+/** B-layout top navigation: brand + folder tabs + actions (replaces sidebar). */
+export function TopNav() {
+  const {
+    folders,
+    activeFolder,
+    setActiveFolder,
+    allFiles,
+    screen,
+    setScreen,
+    starred,
+    addCustomFolder,
+  } = useStore();
+
+  const countFor = (key: FolderKey) => allFiles.filter((f) => f.folder === key && !f.isDir).length;
+
+  const handleAdd = async () => {
+    const api = window.localUpdater;
+    if (api?.selectFolder) {
+      const result = await api.selectFolder();
+      if (result) addCustomFolder(result.name, result.path);
+    }
+  };
 
   return (
-    <div style={{ height: '56px', width: '100%', backgroundColor: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', padding: '0 24px', flexShrink: 0 }}>
+    <div
+      style={{
+        height: 56,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0,
+        padding: '0 18px',
+        background: 'var(--color-surface)',
+        borderBottom: '1px solid var(--color-border)',
+      }}
+    >
       {/* Brand */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingRight: '28px', marginRight: '24px', borderRight: '1px solid var(--color-border)', height: '32px' }}>
-        <div style={{ width: '28px', height: '28px', backgroundColor: 'var(--color-accent)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>L</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 28, marginRight: 24, borderRight: '1px solid var(--color-border)', flexShrink: 0 }}>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 7,
+            background: 'var(--color-accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <RefreshCw size={15} color="var(--color-bg)" />
+        </div>
         <div>
-          <div style={{ fontWeight: 'bold', fontSize: '14px', color: 'var(--color-text)', lineHeight: 1 }}>LocalUpdater</div>
-          <div style={{ fontSize: '10px', color: 'var(--color-muted)', marginTop: '2px' }}>最近更新されたファイル</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-head-text)', lineHeight: 1.1 }}>
+            LocalUpdater
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--color-disabled)' }}>最近更新</div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', height: '100%', flex: 1, overflowX: 'auto', overflowY: 'hidden', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-        <div style={tabStyle(appMode === "files" && currentDir === defaultPaths?.desktop)} onClick={() => { setCurrentDir(defaultPaths?.desktop || ""); setAppMode("files"); }}>
-          <Monitor size={14} /> デスクトップ
-        </div>
-        <div style={tabStyle(appMode === "files" && currentDir === defaultPaths?.documents)} onClick={() => { setCurrentDir(defaultPaths?.documents || ""); setAppMode("files"); }}>
-          <FileText size={14} /> ドキュメント
-        </div>
-        <div style={tabStyle(appMode === "files" && currentDir === defaultPaths?.downloads)} onClick={() => { setCurrentDir(defaultPaths?.downloads || ""); setAppMode("files"); }}>
-          <Download size={14} /> ダウンロード
-        </div>
-        
-        {customDirs.map(d => (
-          <div key={d.path} style={tabStyle(appMode === "files" && currentDir === d.path)} onClick={() => { setCurrentDir(d.path); setAppMode("files"); }}>
-            <span style={{ fontSize: '12px' }}>📁</span> {d.name}
-          </div>
-        ))}
-
-        <div style={{ ...tabStyle(false), color: 'var(--color-muted)' }} onClick={handleAddFolder}>
-          <Plus size={14} /> 追加
-        </div>
+      {/* Folder tabs */}
+      <div
+        className="lu-hide-scrollbar"
+        style={{ display: 'flex', alignItems: 'stretch', gap: 4, flex: 1, minWidth: 0, overflowX: 'auto', height: '100%' }}
+      >
+        {folders.map((f) => {
+          const Icon = FOLDER_ICONS[f.icon] ?? Folder;
+          const active = screen === 'main' && activeFolder === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => {
+                setActiveFolder(f.key);
+                setScreen('main');
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '0 12px',
+                height: '100%',
+                background: 'none',
+                border: 'none',
+                borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
+                color: active ? 'var(--color-text)' : 'var(--color-muted)',
+                fontWeight: active ? 700 : 400,
+                fontSize: 13,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <Icon size={12} />
+              {f.label}
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: '1px 6px',
+                  borderRadius: 9999,
+                  background: active ? 'var(--color-accent)' : 'transparent',
+                  color: active ? 'var(--color-bg)' : 'var(--color-disabled)',
+                  fontWeight: active ? 700 : 400,
+                }}
+              >
+                {countFor(f.key)}
+              </span>
+            </button>
+          );
+        })}
+        <button
+          onClick={handleAdd}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '0 10px',
+            height: '100%',
+            background: 'none',
+            border: 'none',
+            color: 'var(--color-muted)',
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
+          <Plus size={13} />
+          追加
+        </button>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '24px' }}>
-        <div style={{ ...tabStyle(appMode === "starred"), padding: '0 4px' }} onClick={() => setAppMode("starred")}>
-          <Star size={18} fill={appMode === "starred" ? 'var(--color-accent)' : 'none'} color={appMode === "starred" ? 'var(--color-accent)' : 'var(--color-muted)'} />
-        </div>
-        <div style={{ ...tabStyle(appMode === "settings"), padding: '0 4px' }} onClick={() => setAppMode("settings")}>
-          <Settings size={18} color={appMode === "settings" ? 'var(--color-text)' : 'var(--color-muted)'} />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 12, flexShrink: 0 }}>
+        <IconButton active={screen === 'starred'} onClick={() => setScreen('starred')} title="スター付き">
+          <Star size={16} color={screen === 'starred' ? 'var(--color-accent)' : 'var(--color-muted)'} fill={screen === 'starred' ? 'var(--color-accent)' : 'none'} />
+          {starred.size > 0 && (
+            <span style={{ fontSize: 10, color: 'var(--color-muted)', marginLeft: 2 }}>{starred.size}</span>
+          )}
+        </IconButton>
+        <IconButton active={screen === 'settings'} onClick={() => setScreen('settings')} title="設定">
+          <Settings size={16} color={screen === 'settings' ? 'var(--color-accent)' : 'var(--color-muted)'} />
+        </IconButton>
       </div>
     </div>
+  );
+}
+
+function IconButton({
+  children,
+  onClick,
+  active,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  active?: boolean;
+  title: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: 32,
+        padding: '0 8px',
+        borderRadius: 6,
+        border: '1px solid transparent',
+        background: active ? 'var(--color-bg)' : 'transparent',
+        cursor: 'pointer',
+      }}
+    >
+      {children}
+    </button>
   );
 }

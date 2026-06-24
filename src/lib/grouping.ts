@@ -1,40 +1,69 @@
-import type { FileData } from '../components/types';
+import type { FileEntry } from '../types';
 
+// Time-axis grouping for the B layout (SPEC_B §3).
 export type GroupKey = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'older';
 
 export interface FileGroup {
   key: GroupKey;
-  label: string;
-  subLabel: string;
-  files: FileData[];
+  label: string; // 表示名
+  subLabel: string; // 日付サブテキスト
+  files: FileEntry[];
   totalBytes: number;
 }
 
+const DAY = 86_400_000;
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
 function buildSubLabel(key: GroupKey, now: Date): string {
-  // 簡易的な日付範囲ラベル生成
-  const m = now.getMonth() + 1;
-  const d = now.getDate();
-  if (key === 'today') return `${now.getFullYear()}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+  if (key === 'today' || key === 'yesterday') {
+    const d = key === 'today' ? now : new Date(now.getTime() - DAY);
+    const wd = WEEKDAYS[d.getDay()];
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} (${wd})`;
+  }
   return '';
 }
 
-export function groupByTime(files: FileData[]): FileGroup[] {
-  const now = new Date();
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`;
+}
+
+/**
+ * Start-of-period timestamp for the quick date-range filter.
+ * 'today' = 今日0時 / 'week' = 月曜始まりの今週 / 'month' = 今月1日.
+ * Returns 0 for 'all' (no constraint).
+ */
+export function dateRangeStart(range: 'all' | 'today' | 'week' | 'month', now = new Date()): number {
+  if (range === 'all') return 0;
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfYesterday = startOfToday - 86_400_000;
-  
-  const dow = now.getDay();
-  const daysFromMonday = (dow + 6) % 7;
-  const startOfThisWeek = startOfToday - daysFromMonday * 86_400_000;
-  const startOfLastWeek = startOfThisWeek - 7 * 86_400_000;
+  if (range === 'today') return startOfToday;
+  if (range === 'week') {
+    const daysFromMonday = (now.getDay() + 6) % 7;
+    return startOfToday - daysFromMonday * DAY;
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1).getTime(); // month
+}
+
+/** Bucket files by recency (今日 / 昨日 / 今週 / 先週 / 今月 / それ以前). */
+export function groupByTime(files: FileEntry[], now = new Date()): FileGroup[] {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - DAY;
+  // 月曜始まりの今週開始
+  const daysFromMonday = (now.getDay() + 6) % 7;
+  const startOfThisWeek = startOfToday - daysFromMonday * DAY;
+  const startOfLastWeek = startOfThisWeek - 7 * DAY;
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-  const buckets: Record<GroupKey, FileData[]> = {
-    today: [], yesterday: [], thisWeek: [], lastWeek: [], thisMonth: [], older: [],
+  const buckets: Record<GroupKey, FileEntry[]> = {
+    today: [],
+    yesterday: [],
+    thisWeek: [],
+    lastWeek: [],
+    thisMonth: [],
+    older: [],
   };
 
   for (const f of files) {
-    const t = f.updated.getTime();
+    const t = f.modifiedAt;
     if (t >= startOfToday) buckets.today.push(f);
     else if (t >= startOfYesterday) buckets.yesterday.push(f);
     else if (t >= startOfThisWeek) buckets.thisWeek.push(f);
@@ -44,17 +73,21 @@ export function groupByTime(files: FileData[]): FileGroup[] {
   }
 
   const labels: Record<GroupKey, string> = {
-    today: '今日', yesterday: '昨日', thisWeek: '今週',
-    lastWeek: '先週', thisMonth: '今月', older: 'それ以前',
+    today: '今日',
+    yesterday: '昨日',
+    thisWeek: '今週',
+    lastWeek: '先週',
+    thisMonth: '今月',
+    older: 'それ以前',
   };
 
   return (Object.keys(buckets) as GroupKey[])
-    .filter(k => buckets[k].length > 0)
-    .map(k => ({
+    .filter((k) => buckets[k].length > 0)
+    .map((k) => ({
       key: k,
       label: labels[k],
       subLabel: buildSubLabel(k, now),
-      files: buckets[k].sort((a, b) => b.updated.getTime() - a.updated.getTime()),
-      totalBytes: buckets[k].reduce((s, f) => s + f.size, 0),
+      files: buckets[k].sort((a, b) => b.modifiedAt - a.modifiedAt),
+      totalBytes: buckets[k].reduce((s, f) => s + f.sizeBytes, 0),
     }));
 }

@@ -275,7 +275,7 @@ function ExcludeTab() {
     <>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text)', margin: '0 0 6px' }}>スキャン除外</h1>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', margin: '0 0 24px' }}>
-        ファイル名またはパスにこれらを含むファイルは一覧から除外します。
+        ファイル名・フォルダ名がこれらと一致する項目を一覧から除外します（例: node_modules, dist）。
       </p>
       <div
         style={{

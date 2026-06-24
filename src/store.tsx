@@ -164,6 +164,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => { recursiveRef.current = recursive; }, [recursive]);
   useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
 
+  // Resolve which root folder a (sub)path belongs to. Uses a separator-aware
+  // boundary check (not a bare startsWith) and picks the longest match, so a
+  // custom folder nested inside Desktop is attributed to the custom folder —
+  // not mistakenly to Desktop just because its path is a prefix.
+  const folderKeyForPath = (p: string): FolderKey => {
+    const sep = p.includes('\\') ? '\\' : '/';
+    const match = foldersRef.current
+      .filter((f) => p === f.path || p.startsWith(f.path + sep))
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    return match?.key ?? activeFolderRef.current;
+  };
+
   // Unified scan: roots (+ expanded sub-folders), then merge.
   const doScan = useCallback(() => {
     const api = getAPI();
@@ -187,7 +199,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // Lazily-loaded sub-folders (only needed in non-recursive mode).
         if (!rec && expandedRef.current.size > 0) {
           const subList = [...expandedRef.current].map((p) => ({
-            key: foldersRef.current.find((f) => p.startsWith(f.path))?.key ?? 'desktop',
+            key: folderKeyForPath(p),
             path: p,
           }));
           const subFiles = await api.scanFolders(subList, false, exclude);
@@ -228,7 +240,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const api = getAPI();
       if (api && !recursiveRef.current) {
         expandedRef.current.add(path);
-        const key = foldersRef.current.find((f) => path.startsWith(f.path))?.key ?? 'desktop';
+        const key = folderKeyForPath(path);
         setIsScanning(true);
         api
           .scanFolders([{ key, path }], false, excludeRef.current)
@@ -480,9 +492,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Derived: entries at current browsePath or active folder root.
   const folderFiles = useMemo(() => {
-    const kw = excludeKeywords;
+    // Match keywords against whole path segments (file/folder names), not raw
+    // substrings — so "dist" excludes a folder named dist, never the file
+    // "distribution.pdf", and an ancestor segment never mass-hides its contents.
+    const kwSet = new Set(excludeKeywords.map((k) => k.toLowerCase()));
     const notExcluded = (f: FileEntry) =>
-      !kw.some((k) => f.path.toLowerCase().includes(k.toLowerCase()));
+      !f.path
+        .toLowerCase()
+        .split(/[\\/]/)
+        .some((seg) => kwSet.has(seg));
 
     if (browsePath) {
       const sep = browsePath.includes('\\') ? '\\' : '/';

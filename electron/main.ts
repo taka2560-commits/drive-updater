@@ -125,9 +125,13 @@ function scanDir(
     return results;
   }
 
+  // Exclude on whole-name match (case-insensitive), not substring: a keyword
+  // like "dist" hides a folder/file *named* dist, never "distribution.pdf".
+  const excludeSet = new Set(excludeKeywords.map((k) => k.toLowerCase()));
+
   for (const entry of entries) {
     if (entry.startsWith('.')) continue;
-    if (excludeKeywords.some((kw) => entry.toLowerCase().includes(kw.toLowerCase()))) continue;
+    if (excludeSet.has(entry.toLowerCase())) continue;
 
     const fullPath = path.join(dir, entry);
     let stat: fs.Stats;

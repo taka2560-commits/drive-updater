@@ -49,37 +49,30 @@ interface VTableCtx {
 }
 
 // Must be defined at module scope so react-virtuoso receives a stable reference.
-// react-virtuoso injects `item` (the data element) and `context` at runtime.
+// react-virtuoso injects `item` (the data element) plus `context` and the
+// data-index / data-item-index / data-known-size attributes it uses to measure
+// and track rows — those MUST be forwarded to the <tr>, or only one row renders.
 const VTableRow = ({
   context,
   item,
   style,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  'data-index': _di,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  'data-item-index': _dii,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  'data-known-size': _dks,
-  ...props
+  ...rest
 }: {
   style?: React.CSSProperties;
   children?: React.ReactNode;
-  'data-index': number;
-  'data-item-index': number;
-  'data-known-size': number;
-  item: FileEntry;
+  item?: FileEntry;
   context?: VTableCtx;
 }) => {
   const [hovered, setHovered] = useState(false);
 
-  if (!context || !item) return <tr style={style} {...props} />;
+  if (!context || !item) return <tr style={style} {...rest} />;
 
   const f = item;
   const isSelected = context.selectedPaths.has(f.path) || context.selectedPath === f.path;
 
   return (
     <tr
-      {...props}
+      {...rest}
       style={{
         ...style,
         borderBottom: '1px solid rgba(127,127,127,0.18)',

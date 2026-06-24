@@ -1,17 +1,17 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, forwardRef, useState, type CSSProperties } from 'react';
 import {
   Star,
   ChevronsUpDown,
   ChevronUp,
   ChevronDown,
   Folder,
-  ChevronRight,
   ExternalLink,
   FolderOpen,
   Copy,
   Pencil,
   Trash2,
 } from 'lucide-react';
+import { TableVirtuoso } from 'react-virtuoso';
 import { useStore } from '../storeContext';
 import { fileMeta } from '../lib/fileType';
 import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
@@ -28,7 +28,6 @@ const TH: CSSProperties = {
   cursor: 'pointer',
 };
 
-// Electron preload bridge (undefined in browser dev mode).
 function api() {
   return (window as unknown as { localUpdater?: Window['localUpdater'] }).localUpdater;
 }
@@ -38,6 +37,93 @@ interface MenuState {
   y: number;
   file: FileEntry;
 }
+
+// Context passed to the module-level TableRow component via react-virtuoso's context prop.
+interface VTableCtx {
+  selectedPath: string | null;
+  selectedPaths: Set<string>;
+  editingPath: string | null;
+  onRowClick: (e: React.MouseEvent, f: FileEntry) => void;
+  openMenu: (e: React.MouseEvent, f: FileEntry) => void;
+  browseInto: (path: string) => void;
+}
+
+// Must be defined at module scope so react-virtuoso receives a stable reference.
+// react-virtuoso injects `item` (the data element) and `context` at runtime.
+const VTableRow = ({
+  context,
+  item,
+  style,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  'data-index': _di,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  'data-item-index': _dii,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  'data-known-size': _dks,
+  ...props
+}: {
+  style?: React.CSSProperties;
+  children?: React.ReactNode;
+  'data-index': number;
+  'data-item-index': number;
+  'data-known-size': number;
+  item: FileEntry;
+  context?: VTableCtx;
+}) => {
+  const [hovered, setHovered] = useState(false);
+
+  if (!context || !item) return <tr style={style} {...props} />;
+
+  const f = item;
+  const isSelected = context.selectedPaths.has(f.path) || context.selectedPath === f.path;
+
+  return (
+    <tr
+      {...props}
+      style={{
+        ...style,
+        borderBottom: '1px solid rgba(127,127,127,0.18)',
+        cursor: 'pointer',
+        height: 36,
+        background: isSelected
+          ? 'rgba(var(--accent-rgb), 0.08)'
+          : hovered
+            ? 'var(--color-surface-2)'
+            : 'transparent',
+      }}
+      aria-selected={isSelected}
+      onClick={(e) => context.onRowClick(e, f)}
+      onDoubleClick={
+        context.editingPath === f.path || !f.isDir ? undefined : () => context.browseInto(f.path)
+      }
+      onContextMenu={(e) => context.openMenu(e, f)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    />
+  );
+};
+
+// Stable component overrides for TableVirtuoso — never recreated.
+const TABLE_COMPONENTS = {
+  Table: ({ style, ...props }: React.ComponentPropsWithoutRef<'table'>) => (
+    <table style={{ ...style, width: '100%', borderCollapse: 'collapse' }} {...props} />
+  ),
+  TableHead: forwardRef<HTMLTableSectionElement, React.ComponentPropsWithoutRef<'thead'>>(
+    (props, ref) => (
+      <thead
+        ref={ref}
+        style={{ position: 'sticky', top: 0, background: 'var(--color-surface-2)', zIndex: 5 }}
+        {...props}
+      />
+    ),
+  ),
+  TableBody: forwardRef<HTMLTableSectionElement, React.ComponentPropsWithoutRef<'tbody'>>(
+    (props, ref) => <tbody {...props} ref={ref} />,
+  ),
+  // react-virtuoso injects item + context at runtime; cast bypasses the type mismatch.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TableRow: VTableRow as any,
+};
 
 export function FileTable() {
   const {
@@ -64,7 +150,6 @@ export function FileTable() {
 
   const [menu, setMenu] = useState<MenuState | null>(null);
 
-  // Modifier-aware row click → single / toggle / range selection.
   const onRowClick = (e: React.MouseEvent, file: FileEntry) => {
     if (e.metaKey || e.ctrlKey) toggleInSelection(file.path);
     else if (e.shiftKey) selectRange(file.path, filteredFiles.map((f) => f.path));
@@ -131,54 +216,192 @@ export function FileTable() {
     );
   }
 
+  // List view — virtualized with TableVirtuoso.
+  const vtableCtx: VTableCtx = {
+    selectedPath,
+    selectedPaths,
+    editingPath,
+    onRowClick,
+    openMenu,
+    browseInto,
+  };
+
   return (
-    <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-bg)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead style={{ position: 'sticky', top: 0, background: 'var(--color-surface-2)', zIndex: 5 }}>
+    <div
+      style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-bg)' }}
+    >
+      <TableVirtuoso<FileEntry, VTableCtx>
+        style={{ flex: 1 }}
+        data={filteredFiles}
+        computeItemKey={(_, f) => f.path}
+        context={vtableCtx}
+        components={TABLE_COMPONENTS}
+        fixedHeaderContent={() => (
           <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
             <th style={{ ...TH, padding: '10px 8px 10px 16px', width: 32, cursor: 'default' }} />
-            <SortHeader label="ファイル名" col="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+            <SortHeader
+              label="ファイル名"
+              col="name"
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={toggleSort}
+            />
             <th style={{ ...TH, width: 110, cursor: 'default' }}>フォルダ</th>
-            <SortHeader label="サイズ" col="size" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" width={80} />
-            <SortHeader label="更新" col="modified" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} width={130} padRight />
+            <SortHeader
+              label="サイズ"
+              col="size"
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={toggleSort}
+              align="right"
+              width={80}
+            />
+            <SortHeader
+              label="更新"
+              col="modified"
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={toggleSort}
+              width={130}
+              padRight
+            />
           </tr>
-        </thead>
-        <tbody>
-          {filteredFiles.map((f) =>
-            f.isDir ? (
-              <FolderRow
-                key={f.path}
-                file={f}
-                selected={selectedPaths.has(f.path) || selectedPath === f.path}
-                onSelect={(e) => onRowClick(e, f)}
-                onOpen={() => browseInto(f.path)}
-                onContextMenu={(e) => openMenu(e, f)}
-                folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
-                {...editProps(f)}
-              />
-            ) : (
-              <Row
-                key={f.path}
-                file={f}
-                selected={selectedPaths.has(f.path) || selectedPath === f.path}
-                starred={isStarred(f.path)}
-                onSelect={(e) => onRowClick(e, f)}
-                onToggleStar={() => toggleStar(f.path)}
-                onContextMenu={(e) => openMenu(e, f)}
-                folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
-                {...editProps(f)}
-              />
-            ),
-          )}
-        </tbody>
-      </table>
+        )}
+        itemContent={(_, f) => {
+          const isSelected = selectedPaths.has(f.path) || selectedPath === f.path;
+          const { editing, onRenameCommit, onRenameCancel } = editProps(f);
+          const folderLabel = folders.find((fd) => fd.key === f.folder)?.label ?? '';
 
+          if (f.isDir) {
+            return (
+              <>
+                <td style={{ padding: '8px 8px 8px 16px', textAlign: 'center' }} />
+                <td style={{ padding: '8px 8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Folder size={15} color="var(--color-head-text)" style={{ flexShrink: 0 }} />
+                    {editing ? (
+                      <RenameInput
+                        initial={f.name}
+                        isDir
+                        onCommit={onRenameCommit}
+                        onCancel={onRenameCancel}
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--color-head-text)',
+                          fontWeight: isSelected ? 700 : 500,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: 380,
+                        }}
+                      >
+                        {f.name}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>
+                  {folderLabel}
+                </td>
+                <td
+                  style={{
+                    padding: '8px 8px',
+                    fontSize: 11,
+                    color: 'var(--color-disabled)',
+                    textAlign: 'right',
+                  }}
+                >
+                  —
+                </td>
+                <td style={{ padding: '8px 16px 8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>
+                  {formatRelativeTime(f.modifiedAt)}
+                </td>
+              </>
+            );
+          }
+
+          const meta = fileMeta(f.ext);
+          const recent = isRecent(f.modifiedAt);
+          return (
+            <>
+              <td style={{ padding: '8px 8px 8px 16px', textAlign: 'center' }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleStar(f.path);
+                  }}
+                  aria-label={isStarred(f.path) ? 'スターを外す' : 'スターを付ける'}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}
+                >
+                  <Star
+                    size={13}
+                    color={isStarred(f.path) ? 'var(--color-accent)' : 'var(--color-disabled)'}
+                    fill={isStarred(f.path) ? 'var(--color-accent)' : 'none'}
+                  />
+                </button>
+              </td>
+              <td style={{ padding: '8px 8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <meta.Icon size={15} color={meta.color} style={{ flexShrink: 0 }} />
+                  {editing ? (
+                    <RenameInput
+                      initial={f.name}
+                      isDir={false}
+                      onCommit={onRenameCommit}
+                      onCancel={onRenameCancel}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: 'var(--color-text)',
+                        fontWeight: isSelected ? 700 : 400,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: 380,
+                      }}
+                    >
+                      {f.name}
+                    </span>
+                  )}
+                </div>
+              </td>
+              <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>
+                {folderLabel}
+              </td>
+              <td
+                style={{
+                  padding: '8px 8px',
+                  fontSize: 11,
+                  color: 'var(--color-muted)',
+                  textAlign: 'right',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
+                {formatBytes(f.sizeBytes)}
+              </td>
+              <td
+                style={{
+                  padding: '8px 16px 8px 8px',
+                  fontSize: 11,
+                  color: recent ? 'var(--color-accent)' : 'var(--color-muted)',
+                }}
+              >
+                {formatRelativeTime(f.modifiedAt)}
+              </td>
+            </>
+          );
+        }}
+      />
       {contextMenuEl}
     </div>
   );
 }
 
-// 右クリックメニュー（普通のエクスプローラー相当）
 function ContextMenu({
   state,
   starred,
@@ -198,7 +421,6 @@ function ContextMenu({
 }) {
   const { x, y, file } = state;
 
-  // Close on any outside click / Escape.
   useEffect(() => {
     const onDown = () => onClose();
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -354,7 +576,6 @@ function MenuItem({
   );
 }
 
-// インラインのリネーム入力（拡張子を除いた部分を初期選択）
 function RenameInput({
   initial,
   isDir,
@@ -439,203 +660,6 @@ function SortHeader({
   );
 }
 
-// フォルダ行（ダブルクリックまたは矢印アイコンでドリルダウン）
-function FolderRow({
-  file,
-  selected,
-  onSelect,
-  onOpen,
-  onContextMenu,
-  folderLabel,
-  editing,
-  onRenameCommit,
-  onRenameCancel,
-}: {
-  file: FileEntry;
-  selected: boolean;
-  onSelect: (e: React.MouseEvent) => void;
-  onOpen: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  folderLabel: string;
-  editing: boolean;
-  onRenameCommit: (name: string) => void;
-  onRenameCancel: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const rowBg = selected
-    ? 'rgba(var(--accent-rgb), 0.08)'
-    : hovered
-      ? 'var(--color-surface-2)'
-      : 'transparent';
-
-  return (
-    <tr
-      role="row"
-      aria-selected={selected}
-      onClick={onSelect}
-      onDoubleClick={editing ? undefined : onOpen}
-      onContextMenu={onContextMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderBottom: '1px solid rgba(127,127,127,0.18)',
-        background: rowBg,
-        cursor: 'pointer',
-        height: 36,
-      }}
-    >
-      {/* Star column (empty for folders) */}
-      <td style={{ padding: '8px 8px 8px 16px', textAlign: 'center' }} />
-      {/* Name column */}
-      <td style={{ padding: '8px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Folder size={15} color="var(--color-head-text)" style={{ flexShrink: 0 }} />
-          {editing ? (
-            <RenameInput initial={file.name} isDir onCommit={onRenameCommit} onCancel={onRenameCancel} />
-          ) : (
-            <span
-              style={{
-                fontSize: 13,
-                color: 'var(--color-head-text)',
-                fontWeight: selected ? 700 : 500,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 380,
-              }}
-            >
-              {file.name}
-            </span>
-          )}
-          {hovered && !editing && (
-            <ChevronRight size={12} color="var(--color-disabled)" style={{ flexShrink: 0, marginLeft: 'auto' }} />
-          )}
-        </div>
-      </td>
-      {/* Folder label */}
-      <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>{folderLabel}</td>
-      {/* Size: — for folders */}
-      <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-disabled)', textAlign: 'right' }}>—</td>
-      {/* Modified date */}
-      <td style={{ padding: '8px 16px 8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>
-        {formatRelativeTime(file.modifiedAt)}
-      </td>
-    </tr>
-  );
-}
-
-function Row({
-  file,
-  selected,
-  starred,
-  onSelect,
-  onToggleStar,
-  onContextMenu,
-  folderLabel,
-  editing,
-  onRenameCommit,
-  onRenameCancel,
-}: {
-  file: FileEntry;
-  selected: boolean;
-  starred: boolean;
-  onSelect: (e: React.MouseEvent) => void;
-  onToggleStar: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  folderLabel: string;
-  editing: boolean;
-  onRenameCommit: (name: string) => void;
-  onRenameCancel: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const meta = fileMeta(file.ext);
-  const recent = isRecent(file.modifiedAt);
-
-  const rowBg = selected
-    ? 'rgba(var(--accent-rgb), 0.10)'
-    : hovered
-      ? 'var(--color-surface-2)'
-      : 'transparent';
-
-  return (
-    <tr
-      role="row"
-      aria-selected={selected}
-      onClick={onSelect}
-      onContextMenu={onContextMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderBottom: '1px solid rgba(127,127,127,0.18)',
-        background: rowBg,
-        cursor: 'pointer',
-        height: 36,
-      }}
-    >
-      <td style={{ padding: '8px 8px 8px 16px', textAlign: 'center' }}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStar();
-          }}
-          aria-label={starred ? 'スターを外す' : 'スターを付ける'}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}
-        >
-          <Star
-            size={13}
-            color={starred ? 'var(--color-accent)' : 'var(--color-disabled)'}
-            fill={starred ? 'var(--color-accent)' : 'none'}
-          />
-        </button>
-      </td>
-      <td style={{ padding: '8px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <meta.Icon size={15} color={meta.color} style={{ flexShrink: 0 }} />
-          {editing ? (
-            <RenameInput initial={file.name} isDir={false} onCommit={onRenameCommit} onCancel={onRenameCancel} />
-          ) : (
-            <span
-              style={{
-                fontSize: 13,
-                color: 'var(--color-text)',
-                fontWeight: selected ? 700 : 400,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 380,
-              }}
-            >
-              {file.name}
-            </span>
-          )}
-        </div>
-      </td>
-      <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>{folderLabel}</td>
-      <td
-        style={{
-          padding: '8px 8px',
-          fontSize: 11,
-          color: 'var(--color-muted)',
-          textAlign: 'right',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        {formatBytes(file.sizeBytes)}
-      </td>
-      <td
-        style={{
-          padding: '8px 16px 8px 8px',
-          fontSize: 11,
-          color: recent ? 'var(--color-accent)' : 'var(--color-muted)',
-        }}
-      >
-        {formatRelativeTime(file.modifiedAt)}
-      </td>
-    </tr>
-  );
-}
-
-// グリッド表示のカード
 function GridCard({
   file,
   selected,
@@ -679,7 +703,6 @@ function GridCard({
         transition: 'box-shadow 0.12s, border-color 0.12s',
       }}
     >
-      {/* Star (files only) */}
       {!file.isDir && (
         <button
           onClick={(e) => {

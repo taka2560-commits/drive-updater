@@ -1,4 +1,5 @@
 import { Star, Folder } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 import { useStore } from '../storeContext';
 import { fileMeta } from '../lib/fileType';
 import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
@@ -44,9 +45,9 @@ export function FileListC() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', padding: '12px 24px 24px' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', overflow: 'hidden' }}>
       {/* Sort toggles */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 24px 10px' }}>
         <span style={{ fontSize: 11, color: 'var(--color-muted)', marginRight: 2 }}>並び順:</span>
         {SORTS.map((s) => {
           const active = sortKey === s.key;
@@ -73,19 +74,23 @@ export function FileListC() {
         })}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {filteredFiles.map((f) => (
-          <RowC
-            key={f.path}
-            file={f}
-            folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
-            selected={selectedPaths.has(f.path) || selectedPath === f.path}
-            starred={!f.isDir && isStarred(f.path)}
-            onClick={(e) => onRowClick(e, f)}
-            onToggleStar={() => toggleStar(f.path)}
-          />
-        ))}
-      </div>
+      <Virtuoso
+        style={{ flex: 1 }}
+        data={filteredFiles}
+        computeItemKey={(_, f) => f.path}
+        itemContent={(_, f) => (
+          <div style={{ padding: '0 24px 6px' }}>
+            <RowC
+              file={f}
+              folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+              selected={selectedPaths.has(f.path) || selectedPath === f.path}
+              starred={!f.isDir && isStarred(f.path)}
+              onClick={(e) => onRowClick(e, f)}
+              onToggleStar={() => toggleStar(f.path)}
+            />
+          </div>
+        )}
+      />
     </div>
   );
 }

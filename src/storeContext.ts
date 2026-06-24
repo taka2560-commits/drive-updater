@@ -75,9 +75,27 @@ export interface Store {
   setSelected: (p: string | null) => void;
   selectedFile: FileEntry | null;
 
+  // Multi-selection (⌘/Shift click) + bulk actions
+  selectedPaths: Set<string>;
+  selectOne: (path: string | null) => void;
+  toggleInSelection: (path: string) => void;
+  selectRange: (path: string, ordered: string[]) => void;
+  clearSelection: () => void;
+
   starred: Set<string>;
   isStarred: (path: string) => boolean;
   toggleStar: (path: string) => void;
+
+  // Delete (trash) — requestDelete opens a central confirm dialog
+  pendingDelete: string[] | null;
+  requestDelete: (paths: string[]) => void;
+  cancelDelete: () => void;
+  confirmDelete: () => void;
+  // Rename a file/folder (updates real FS in Electron, optimistic in browser)
+  renameFile: (path: string, newName: string) => void;
+  // Path being renamed inline (FileTable shows an input for it)
+  editingPath: string | null;
+  setEditingPath: (p: string | null) => void;
 
   excludeKeywords: string[];
   addExclude: (kw: string) => void;

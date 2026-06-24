@@ -37,6 +37,9 @@ interface LocalUpdaterAPI {
     excludeKeywords: string[],
   ) => Promise<FileEntry[]>;
   readImage: (path: string) => Promise<string | null>;
+  readText: (path: string) => Promise<string | null>;
+  trashItem: (path: string) => Promise<boolean>;
+  renameItem: (oldPath: string, newName: string) => Promise<string | null>;
   startWatch: (paths: string[], recursive: boolean) => void;
   onFilesChanged: (cb: () => void) => () => void;
 }
@@ -121,6 +124,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const [selectedPath, setSelected] = useState<string | null>(null);
+  // Multi-selection (⌘/Shift click). selectedPath stays = last-clicked / detail target.
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const selectionAnchorRef = useRef<string | null>(null);
+
+  // Paths queued for deletion — drives the central confirm dialog (null = closed).
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
+  // Path currently being renamed inline (null = none).
+  const [editingPath, setEditingPath] = useState<string | null>(null);
 
   const [starred, setStarred] = useState<Set<string>>(
     () => new Set(loadJSON<string[]>(K.starred, DEFAULT_STARRED)),
@@ -278,6 +289,104 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return next;
     });
   };
+
+  // ── Multi-selection ───────────────────────────────────────────────
+  // Single click: select one (and set as detail target + anchor).
+  const selectOne = useCallback((path: string | null) => {
+    setSelected(path);
+    setSelectedPaths(path ? new Set([path]) : new Set());
+    selectionAnchorRef.current = path;
+  }, []);
+
+  // ⌘/Ctrl click: toggle a path in/out of the selection.
+  const toggleInSelection = useCallback((path: string) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+    setSelected(path);
+    selectionAnchorRef.current = path;
+  }, []);
+
+  // Shift click: select the contiguous range from the anchor to path.
+  const selectRange = useCallback((path: string, ordered: string[]) => {
+    const anchor = selectionAnchorRef.current ?? path;
+    const a = ordered.indexOf(anchor);
+    const b = ordered.indexOf(path);
+    if (a === -1 || b === -1) {
+      setSelectedPaths(new Set([path]));
+      setSelected(path);
+      return;
+    }
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    setSelectedPaths(new Set(ordered.slice(lo, hi + 1)));
+    setSelected(path);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedPaths(new Set());
+    setSelected(null);
+    selectionAnchorRef.current = null;
+  }, []);
+
+  // ── Delete (trash) ────────────────────────────────────────────────
+  // requestDelete opens the confirm dialog; confirmDelete performs the move.
+  const requestDelete = useCallback((paths: string[]) => {
+    if (paths.length > 0) setPendingDelete(paths);
+  }, []);
+  const cancelDelete = useCallback(() => setPendingDelete(null), []);
+
+  const confirmDelete = useCallback(async () => {
+    const paths = pendingDelete;
+    setPendingDelete(null);
+    if (!paths || paths.length === 0) return;
+    const api = getAPI();
+    let removed = paths;
+    if (api?.trashItem) {
+      const results = await Promise.all(
+        paths.map((p) => api.trashItem(p).then((ok) => (ok ? p : null))),
+      );
+      removed = results.filter((p): p is string => p !== null);
+    }
+    if (removed.length === 0) return;
+    const removedSet = new Set(removed);
+    setAllFiles((prev) => prev.filter((f) => !removedSet.has(f.path)));
+    setStarred((prev) => {
+      if (![...removedSet].some((p) => prev.has(p))) return prev;
+      const next = new Set(prev);
+      removedSet.forEach((p) => next.delete(p));
+      saveJSON(K.starred, [...next]);
+      return next;
+    });
+    setSelected((cur) => (cur && removedSet.has(cur) ? null : cur));
+    setSelectedPaths((prev) => {
+      if (![...removedSet].some((p) => prev.has(p))) return prev;
+      const next = new Set(prev);
+      removedSet.forEach((p) => next.delete(p));
+      return next;
+    });
+  }, [pendingDelete]);
+
+  // ── Rename ────────────────────────────────────────────────────────
+  const renameFile = useCallback(async (path: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === path.split(/[\\/]/).pop()) return;
+    const api = getAPI();
+    const sep = path.includes('\\') ? '\\' : '/';
+    const nextPath = api
+      ? await api.renameItem(path, trimmed)
+      : path.slice(0, path.lastIndexOf(sep) + 1) + trimmed; // browser: optimistic
+    if (!nextPath) return;
+    const ext = trimmed.includes('.') ? trimmed.slice(trimmed.lastIndexOf('.') + 1).toLowerCase() : '';
+    setAllFiles((prev) =>
+      prev.map((f) =>
+        f.path === path ? { ...f, path: nextPath, name: trimmed, ext: f.isDir ? '' : ext } : f,
+      ),
+    );
+    setSelected((cur) => (cur === path ? nextPath : cur));
+  }, []);
 
   const addExclude = (kw: string) => {
     const v = kw.trim();
@@ -492,9 +601,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     selectedPath,
     setSelected,
     selectedFile,
+    selectedPaths,
+    selectOne,
+    toggleInSelection,
+    selectRange,
+    clearSelection,
     starred,
     isStarred,
     toggleStar,
+    pendingDelete,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+    renameFile,
+    editingPath,
+    setEditingPath,
     excludeKeywords,
     addExclude,
     removeExclude,

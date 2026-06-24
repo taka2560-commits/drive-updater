@@ -64,6 +64,39 @@ ipcMain.handle('select-folder', async () => {
 ipcMain.handle('open-path', (_e, p: string) => shell.openPath(p));
 ipcMain.handle('show-in-folder', (_e, p: string) => shell.showItemInFolder(p));
 
+// ファイル/フォルダをゴミ箱へ移動（復元可能）
+ipcMain.handle('trash-item', async (_e, p: string) => {
+  try {
+    await shell.trashItem(p);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+// ファイル/フォルダ名を変更し、新しいパスを返す（失敗時 null）
+ipcMain.handle('rename-item', (_e, oldPath: string, newName: string) => {
+  try {
+    const next = path.join(path.dirname(oldPath), newName);
+    if (fs.existsSync(next)) return null; // 同名が既に存在
+    fs.renameSync(oldPath, next);
+    return next;
+  } catch {
+    return null;
+  }
+});
+
+// テキストファイルの内容を返す（256KB上限・失敗時 null）
+ipcMain.handle('read-text', (_e, filePath: string) => {
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > 256 * 1024) return null;
+    return fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+});
+
 // FileEntry 型（renderer 側の types.ts と一致させる）
 interface FileEntry {
   path: string;

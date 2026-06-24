@@ -6,6 +6,7 @@ import { MainScreenB } from './screens/MainScreenB';
 import { MainScreenC } from './screens/MainScreenC';
 import { StarredScreen } from './screens/StarredScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { ConfirmDialog } from './components/ConfirmDialog';
 
 function Shell() {
   const store = useStore();
@@ -59,6 +60,26 @@ function Shell() {
         return;
       }
 
+      // Delete/Backspace → move selected file(s) to trash (confirm dialog).
+      if ((e.key === 'Delete' || e.key === 'Backspace') && store.screen === 'main') {
+        const targets =
+          store.selectedPaths.size > 0 ? [...store.selectedPaths]
+            : store.selectedPath ? [store.selectedPath]
+              : [];
+        if (targets.length > 0) {
+          e.preventDefault();
+          store.requestDelete(targets);
+        }
+        return;
+      }
+
+      // F2 → rename the selected file inline (A layout has the table input).
+      if (e.key === 'F2' && store.selectedPath && store.layout === 'A') {
+        e.preventDefault();
+        store.setEditingPath(store.selectedPath);
+        return;
+      }
+
       // Arrow/Space navigation is A-layout only; B (accordion) and C (modal)
       // handle these keys inside their own components.
       if (store.layout !== 'A') return;
@@ -86,11 +107,19 @@ function Shell() {
     return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
-  if (store.screen === 'starred') return <StarredScreen />;
-  if (store.screen === 'settings') return <SettingsScreen />;
-  if (store.layout === 'B') return <MainScreenB searchRef={searchRef} />;
-  if (store.layout === 'C') return <MainScreenC searchRef={searchRef} />;
-  return <MainScreen searchRef={searchRef} />;
+  const screen =
+    store.screen === 'starred' ? <StarredScreen />
+      : store.screen === 'settings' ? <SettingsScreen />
+        : store.layout === 'B' ? <MainScreenB searchRef={searchRef} />
+          : store.layout === 'C' ? <MainScreenC searchRef={searchRef} />
+            : <MainScreen searchRef={searchRef} />;
+
+  return (
+    <>
+      {screen}
+      <ConfirmDialog />
+    </>
+  );
 }
 
 export default function App() {

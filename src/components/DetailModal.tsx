@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Star, X, ExternalLink, FolderOpen, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, X, ExternalLink, FolderOpen, Copy, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { fileMeta, matchesType } from '../lib/fileType';
 import { formatBytes, formatDateTime, formatRelativeTime } from '../lib/format';
@@ -8,7 +8,7 @@ import type { FileEntry } from '../types';
 
 /** C-layout: full-width modal detail with prev/next navigation. */
 export function DetailModal({ file }: { file: FileEntry }) {
-  const { filteredFiles, setSelected, isStarred, toggleStar } = useStore();
+  const { filteredFiles, setSelected, isStarred, toggleStar, requestDelete } = useStore();
 
   const index = useMemo(() => filteredFiles.findIndex((f) => f.path === file.path), [filteredFiles, file.path]);
   const hasPrev = index > 0;
@@ -170,6 +170,9 @@ export function DetailModal({ file }: { file: FileEntry }) {
                   </Button>
                 </>
               )}
+              <Button variant="ghost" size="md" Icon={Trash2} style={{ color: '#D46A6A' }} onClick={() => requestDelete([file.path])}>
+                ゴミ箱
+              </Button>
             </div>
           </div>
         </div>

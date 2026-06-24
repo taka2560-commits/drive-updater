@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld('localUpdater', {
     excludeKeywords: string[],
   ) => ipcRenderer.invoke('scan-folders', folders, recursive, excludeKeywords),
   readImage: (path: string) => ipcRenderer.invoke('read-image', path),
+  readText: (path: string) => ipcRenderer.invoke('read-text', path),
+  trashItem: (path: string) => ipcRenderer.invoke('trash-item', path),
+  renameItem: (oldPath: string, newName: string) =>
+    ipcRenderer.invoke('rename-item', oldPath, newName),
   startWatch: (paths: string[], recursive: boolean) =>
     ipcRenderer.send('start-watch', paths, recursive),
   onFilesChanged: (cb: () => void) => {

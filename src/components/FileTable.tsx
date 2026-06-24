@@ -9,6 +9,8 @@ import {
   ExternalLink,
   FolderOpen,
   Copy,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { fileMeta } from '../lib/fileType';
@@ -41,7 +43,10 @@ export function FileTable() {
   const {
     filteredFiles,
     selectedPath,
-    setSelected,
+    selectedPaths,
+    selectOne,
+    toggleInSelection,
+    selectRange,
     isStarred,
     toggleStar,
     sortKey,
@@ -51,13 +56,24 @@ export function FileTable() {
     folders,
     browseInto,
     viewMode,
+    editingPath,
+    setEditingPath,
+    renameFile,
+    requestDelete,
   } = useStore();
 
   const [menu, setMenu] = useState<MenuState | null>(null);
 
+  // Modifier-aware row click → single / toggle / range selection.
+  const onRowClick = (e: React.MouseEvent, file: FileEntry) => {
+    if (e.metaKey || e.ctrlKey) toggleInSelection(file.path);
+    else if (e.shiftKey) selectRange(file.path, filteredFiles.map((f) => f.path));
+    else selectOne(file.path);
+  };
+
   const openMenu = (e: React.MouseEvent, file: FileEntry) => {
     e.preventDefault();
-    setSelected(file.path);
+    if (!selectedPaths.has(file.path)) selectOne(file.path);
     setMenu({ x: e.clientX, y: e.clientY, file });
   };
 
@@ -72,8 +88,19 @@ export function FileTable() {
       onClose={() => setMenu(null)}
       onOpenFolder={() => browseInto(menu.file.path)}
       onToggleStar={() => toggleStar(menu.file.path)}
+      onRename={() => setEditingPath(menu.file.path)}
+      onDelete={() => requestDelete([menu.file.path])}
     />
   );
+
+  const editProps = (file: FileEntry) => ({
+    editing: editingPath === file.path,
+    onRenameCommit: (name: string) => {
+      renameFile(file.path, name);
+      setEditingPath(null);
+    },
+    onRenameCancel: () => setEditingPath(null),
+  });
 
   if (viewMode === 'grid') {
     return (
@@ -90,10 +117,10 @@ export function FileTable() {
             <GridCard
               key={f.path}
               file={f}
-              selected={selectedPath === f.path}
+              selected={selectedPaths.has(f.path) || selectedPath === f.path}
               starred={!f.isDir && isStarred(f.path)}
-              onSelect={() => setSelected(f.path)}
-              onOpen={() => (f.isDir ? browseInto(f.path) : setSelected(f.path))}
+              onSelect={(e) => onRowClick(e, f)}
+              onOpen={() => (f.isDir ? browseInto(f.path) : selectOne(f.path))}
               onToggleStar={() => toggleStar(f.path)}
               onContextMenu={(e) => openMenu(e, f)}
             />
@@ -122,22 +149,24 @@ export function FileTable() {
               <FolderRow
                 key={f.path}
                 file={f}
-                selected={selectedPath === f.path}
-                onSelect={() => setSelected(f.path)}
+                selected={selectedPaths.has(f.path) || selectedPath === f.path}
+                onSelect={(e) => onRowClick(e, f)}
                 onOpen={() => browseInto(f.path)}
                 onContextMenu={(e) => openMenu(e, f)}
                 folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+                {...editProps(f)}
               />
             ) : (
               <Row
                 key={f.path}
                 file={f}
-                selected={selectedPath === f.path}
+                selected={selectedPaths.has(f.path) || selectedPath === f.path}
                 starred={isStarred(f.path)}
-                onSelect={() => setSelected(f.path)}
+                onSelect={(e) => onRowClick(e, f)}
                 onToggleStar={() => toggleStar(f.path)}
                 onContextMenu={(e) => openMenu(e, f)}
                 folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+                {...editProps(f)}
               />
             ),
           )}
@@ -156,12 +185,16 @@ function ContextMenu({
   onClose,
   onOpenFolder,
   onToggleStar,
+  onRename,
+  onDelete,
 }: {
   state: MenuState;
   starred: boolean;
   onClose: () => void;
   onOpenFolder: () => void;
   onToggleStar: () => void;
+  onRename: () => void;
+  onDelete: () => void;
 }) {
   const { x, y, file } = state;
 
@@ -257,6 +290,26 @@ function ContextMenu({
           onClose();
         }}
       />
+
+      <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+
+      <MenuItem
+        Icon={Pencil}
+        label="名前を変更"
+        onClick={() => {
+          onRename();
+          onClose();
+        }}
+      />
+      <MenuItem
+        Icon={Trash2}
+        label="ゴミ箱に移動"
+        danger
+        onClick={() => {
+          onDelete();
+          onClose();
+        }}
+      />
     </div>
   );
 }
@@ -265,12 +318,15 @@ function MenuItem({
   Icon,
   label,
   onClick,
+  danger = false,
 }: {
   Icon: typeof Copy;
   label: string;
   onClick: () => void;
+  danger?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const color = danger ? '#D46A6A' : 'var(--color-text)';
   return (
     <button
       onClick={onClick}
@@ -283,7 +339,7 @@ function MenuItem({
         fontSize: 12,
         border: 'none',
         background: hovered ? 'var(--color-bg)' : 'transparent',
-        color: 'var(--color-text)',
+        color,
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
@@ -292,9 +348,55 @@ function MenuItem({
         fontFamily: 'var(--font-sans)',
       }}
     >
-      <Icon size={14} style={{ flexShrink: 0, color: 'var(--color-muted)' }} />
+      <Icon size={14} style={{ flexShrink: 0, color: danger ? '#D46A6A' : 'var(--color-muted)' }} />
       {label}
     </button>
+  );
+}
+
+// インラインのリネーム入力（拡張子を除いた部分を初期選択）
+function RenameInput({
+  initial,
+  isDir,
+  onCommit,
+  onCancel,
+}: {
+  initial: string;
+  isDir: boolean;
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  return (
+    <input
+      autoFocus
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onFocus={(e) => {
+        const dot = isDir ? -1 : initial.lastIndexOf('.');
+        e.currentTarget.setSelectionRange(0, dot > 0 ? dot : initial.length);
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') onCommit(value);
+        else if (e.key === 'Escape') onCancel();
+      }}
+      onBlur={() => onCommit(value)}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        fontSize: 13,
+        fontFamily: 'var(--font-sans)',
+        padding: '2px 6px',
+        border: '1px solid var(--color-accent)',
+        borderRadius: 4,
+        background: 'var(--color-surface)',
+        color: 'var(--color-text)',
+        outline: 'none',
+      }}
+    />
   );
 }
 
@@ -345,13 +447,19 @@ function FolderRow({
   onOpen,
   onContextMenu,
   folderLabel,
+  editing,
+  onRenameCommit,
+  onRenameCancel,
 }: {
   file: FileEntry;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onOpen: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   folderLabel: string;
+  editing: boolean;
+  onRenameCommit: (name: string) => void;
+  onRenameCancel: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const rowBg = selected
@@ -365,7 +473,7 @@ function FolderRow({
       role="row"
       aria-selected={selected}
       onClick={onSelect}
-      onDoubleClick={onOpen}
+      onDoubleClick={editing ? undefined : onOpen}
       onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -382,20 +490,24 @@ function FolderRow({
       <td style={{ padding: '8px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Folder size={15} color="var(--color-head-text)" style={{ flexShrink: 0 }} />
-          <span
-            style={{
-              fontSize: 13,
-              color: 'var(--color-head-text)',
-              fontWeight: selected ? 700 : 500,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: 380,
-            }}
-          >
-            {file.name}
-          </span>
-          {hovered && (
+          {editing ? (
+            <RenameInput initial={file.name} isDir onCommit={onRenameCommit} onCancel={onRenameCancel} />
+          ) : (
+            <span
+              style={{
+                fontSize: 13,
+                color: 'var(--color-head-text)',
+                fontWeight: selected ? 700 : 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: 380,
+              }}
+            >
+              {file.name}
+            </span>
+          )}
+          {hovered && !editing && (
             <ChevronRight size={12} color="var(--color-disabled)" style={{ flexShrink: 0, marginLeft: 'auto' }} />
           )}
         </div>
@@ -420,14 +532,20 @@ function Row({
   onToggleStar,
   onContextMenu,
   folderLabel,
+  editing,
+  onRenameCommit,
+  onRenameCancel,
 }: {
   file: FileEntry;
   selected: boolean;
   starred: boolean;
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onToggleStar: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   folderLabel: string;
+  editing: boolean;
+  onRenameCommit: (name: string) => void;
+  onRenameCancel: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const meta = fileMeta(file.ext);
@@ -473,19 +591,23 @@ function Row({
       <td style={{ padding: '8px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <meta.Icon size={15} color={meta.color} style={{ flexShrink: 0 }} />
-          <span
-            style={{
-              fontSize: 13,
-              color: 'var(--color-text)',
-              fontWeight: selected ? 700 : 400,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: 380,
-            }}
-          >
-            {file.name}
-          </span>
+          {editing ? (
+            <RenameInput initial={file.name} isDir={false} onCommit={onRenameCommit} onCancel={onRenameCancel} />
+          ) : (
+            <span
+              style={{
+                fontSize: 13,
+                color: 'var(--color-text)',
+                fontWeight: selected ? 700 : 400,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: 380,
+              }}
+            >
+              {file.name}
+            </span>
+          )}
         </div>
       </td>
       <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>{folderLabel}</td>
@@ -526,7 +648,7 @@ function GridCard({
   file: FileEntry;
   selected: boolean;
   starred: boolean;
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onOpen: () => void;
   onToggleStar: () => void;
   onContextMenu: (e: React.MouseEvent) => void;

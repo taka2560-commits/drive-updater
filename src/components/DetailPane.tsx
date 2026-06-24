@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Star, X, ExternalLink, FolderOpen, Copy, History, MousePointerClick } from 'lucide-react';
+import { Star, X, ExternalLink, FolderOpen, Copy, History, MousePointerClick, Trash2 } from 'lucide-react';
 import { Button } from './ui';
 import { useStore } from '../storeContext';
 import { fileMeta, matchesType } from '../lib/fileType';
@@ -95,6 +95,7 @@ function EmptyDetail() {
 }
 
 function Detail({ file }: { file: FileEntry }) {
+  const { requestDelete } = useStore();
   const meta = fileMeta(file.ext);
   const isImage = matchesType(file.ext, 'image');
 
@@ -246,6 +247,12 @@ function Detail({ file }: { file: FileEntry }) {
             </Button>
           </div>
         )}
+        <Button
+          variant="ghost" size="md" Icon={Trash2} style={{ width: '100%', color: '#D46A6A' }}
+          onClick={() => requestDelete([file.path])}
+        >
+          ゴミ箱に移動
+        </Button>
       </div>
 
       {/* Path */}

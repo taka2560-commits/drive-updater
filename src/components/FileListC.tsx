@@ -16,7 +16,11 @@ export function FileListC() {
     filteredFiles,
     folders,
     selectedPath,
+    selectedPaths,
     setSelected,
+    selectOne,
+    toggleInSelection,
+    selectRange,
     isStarred,
     toggleStar,
     browseInto,
@@ -24,6 +28,20 @@ export function FileListC() {
     sortDir,
     toggleSort,
   } = useStore();
+
+  // ⌘/Shift click → multi-select (no modal); plain click → open modal / drill-in.
+  const onRowClick = (e: React.MouseEvent, f: FileEntry) => {
+    if (e.metaKey || e.ctrlKey) {
+      toggleInSelection(f.path);
+    } else if (e.shiftKey) {
+      selectRange(f.path, filteredFiles.map((x) => x.path));
+    } else if (f.isDir) {
+      browseInto(f.path);
+    } else {
+      selectOne(f.path);
+      setSelected(f.path); // open detail modal
+    }
+  };
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)', padding: '12px 24px 24px' }}>
@@ -61,9 +79,9 @@ export function FileListC() {
             key={f.path}
             file={f}
             folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
-            selected={selectedPath === f.path}
+            selected={selectedPaths.has(f.path) || selectedPath === f.path}
             starred={!f.isDir && isStarred(f.path)}
-            onClick={() => (f.isDir ? browseInto(f.path) : setSelected(f.path))}
+            onClick={(e) => onRowClick(e, f)}
             onToggleStar={() => toggleStar(f.path)}
           />
         ))}
@@ -84,7 +102,7 @@ function RowC({
   folderLabel: string;
   selected: boolean;
   starred: boolean;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   onToggleStar: () => void;
 }) {
   const meta = fileMeta(file.ext);

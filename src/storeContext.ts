@@ -85,6 +85,7 @@ export interface Store {
   starred: Set<string>;
   isStarred: (path: string) => boolean;
   toggleStar: (path: string) => void;
+  starMany: (paths: string[], on: boolean) => void;
 
   // Delete (trash) — requestDelete opens a central confirm dialog
   pendingDelete: string[] | null;

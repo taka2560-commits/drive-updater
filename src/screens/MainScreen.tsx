@@ -5,6 +5,7 @@ import { Sidebar } from '../components/Sidebar';
 import { FilterBar } from '../components/FilterBar';
 import { BreadcrumbBar } from '../components/BreadcrumbBar';
 import { FileTable } from '../components/FileTable';
+import { BulkActionBar } from '../components/BulkActionBar';
 import { DetailPane } from '../components/DetailPane';
 import { StatusBar } from '../components/StatusBar';
 import { EmptyState } from '../components/EmptyState';
@@ -37,7 +38,7 @@ export function MainScreen({ searchRef }: { searchRef: RefObject<HTMLInputElemen
     >
       <Sidebar />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, position: 'relative' }}>
         <FilterBar files={folderFiles} searchRef={searchRef} />
         <BreadcrumbBar />
         {isEmpty ? (
@@ -53,6 +54,7 @@ export function MainScreen({ searchRef }: { searchRef: RefObject<HTMLInputElemen
         ) : (
           <FileTable />
         )}
+        <BulkActionBar />
         <StatusBar />
       </div>
 

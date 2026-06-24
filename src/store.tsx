@@ -280,6 +280,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const isStarred = (path: string) => starred.has(path);
+  // Bulk star/unstar (folders are ignored — only real files can be starred).
+  const starMany = useCallback((paths: string[], on: boolean) => {
+    setStarred((prev) => {
+      const next = new Set(prev);
+      for (const p of paths) {
+        if (on) next.add(p);
+        else next.delete(p);
+      }
+      saveJSON(K.starred, [...next]);
+      return next;
+    });
+  }, []);
   const toggleStar = (path: string) => {
     setStarred((prev) => {
       const next = new Set(prev);
@@ -609,6 +621,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     starred,
     isStarred,
     toggleStar,
+    starMany,
     pendingDelete,
     requestDelete,
     cancelDelete,

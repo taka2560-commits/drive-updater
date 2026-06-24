@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type {
+  DateRange,
   FileEntry,
   FileTypeFilter,
   FolderDef,
@@ -7,6 +8,7 @@ import type {
   Layout,
   Screen,
   SettingsTab,
+  SizeFilter,
   SortDir,
   SortKey,
   ViewMode,
@@ -14,6 +16,7 @@ import type {
 import { applyTheme, loadSavedTheme, type ThemeName } from './theme/tokens';
 import { matchesType } from './lib/fileType';
 import { toDateKey } from './lib/format';
+import { dateRangeStart } from './lib/grouping';
 import {
   buildSampleFiles,
   DEFAULT_STARRED,
@@ -101,6 +104,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FileTypeFilter>('all');
   const [filterByDate, setFilterByDate] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>('all');
+  const [sizeFilter, setSizeFilter] = useState<SizeFilter>('all');
   const [recursive, setRecursiveState] = useState<boolean>(() =>
     loadJSON<boolean>(K.recursive, false),
   );
@@ -195,6 +200,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSearchQuery('');
     setTypeFilter('all');
     setFilterByDate(null);
+    setDateRange('all');
+    setSizeFilter('all');
   };
 
   // Drill into a sub-folder: remember it, lazy-scan its contents, then show it.
@@ -205,6 +212,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSearchQuery('');
       setTypeFilter('all');
       setFilterByDate(null);
+      setDateRange('all');
+      setSizeFilter('all');
       const api = getAPI();
       if (api && !recursiveRef.current) {
         expandedRef.current.add(path);
@@ -408,9 +417,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [searchMatched]);
 
   const filteredFiles = useMemo(() => {
+    const rangeStart = dateRangeStart(dateRange);
+    const sizeMin =
+      sizeFilter === 'gt1mb' ? 1_048_576
+        : sizeFilter === 'gt10mb' ? 10_485_760
+          : sizeFilter === 'gt100mb' ? 104_857_600
+            : 0;
     const out = searchMatched.filter((f) => {
       if (!(f.isDir || matchesType(f.ext, typeFilter))) return false;
       if (filterByDate && toDateKey(f.modifiedAt) !== filterByDate) return false;
+      // Quick filters apply to files only; folders always pass through.
+      if (!f.isDir) {
+        if (rangeStart && f.modifiedAt < rangeStart) return false;
+        if (sizeMin && f.sizeBytes < sizeMin) return false;
+      }
       return true;
     });
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -425,7 +445,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return cmp * dir;
     });
     return out;
-  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate]);
+  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate, dateRange, sizeFilter]);
 
   const selectedFile = useMemo(
     () => allFiles.find((f) => f.path === selectedPath) ?? null,
@@ -462,6 +482,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setViewMode,
     filterByDate,
     setFilterByDate,
+    dateRange,
+    setDateRange,
+    sizeFilter,
+    setSizeFilter,
     sortKey,
     sortDir,
     toggleSort,

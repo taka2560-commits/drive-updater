@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
+  DateRange,
   FileEntry,
   FileTypeFilter,
   FolderDef,
@@ -7,6 +8,7 @@ import type {
   Layout,
   Screen,
   SettingsTab,
+  SizeFilter,
   SortDir,
   SortKey,
   ViewMode,
@@ -58,6 +60,12 @@ export interface Store {
   // Date filter (heatmap cell / activity bar click). null = no date filter.
   filterByDate: string | null;
   setFilterByDate: (d: string | null) => void;
+
+  // Quick filters (FilterBar chips)
+  dateRange: DateRange;
+  setDateRange: (r: DateRange) => void;
+  sizeFilter: SizeFilter;
+  setSizeFilter: (s: SizeFilter) => void;
 
   sortKey: SortKey;
   sortDir: SortDir;

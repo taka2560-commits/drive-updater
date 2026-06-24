@@ -4,7 +4,7 @@ import { Button } from './ui';
 import { ActivityStrip } from './ActivityStrip';
 import { useStore } from '../storeContext';
 import { TYPE_CHIPS } from '../lib/fileType';
-import type { FileEntry } from '../types';
+import type { FileEntry, DateRange, SizeFilter } from '../types';
 
 export function FilterBar({
   files,
@@ -25,6 +25,10 @@ export function FilterBar({
     setRecursive,
     viewMode,
     setViewMode,
+    dateRange,
+    setDateRange,
+    sizeFilter,
+    setSizeFilter,
   } = useStore();
 
   return (
@@ -149,9 +153,78 @@ export function FilterBar({
         })}
       </div>
 
-      {/* Row 3: activity strip */}
+      {/* Row 3: quick filters (period + size) */}
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--color-muted)', marginRight: 2 }}>期間:</span>
+          {DATE_RANGES.map((r) => (
+            <QuickChip
+              key={r.key}
+              label={r.label}
+              selected={dateRange === r.key}
+              onClick={() => setDateRange(r.key)}
+            />
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--color-muted)', marginRight: 2 }}>サイズ:</span>
+          {SIZE_FILTERS.map((s) => (
+            <QuickChip
+              key={s.key}
+              label={s.label}
+              selected={sizeFilter === s.key}
+              onClick={() => setSizeFilter(s.key)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Row 4: activity strip */}
       <ActivityStrip files={files} />
     </div>
+  );
+}
+
+const DATE_RANGES: { key: DateRange; label: string }[] = [
+  { key: 'all', label: 'すべて' },
+  { key: 'today', label: '今日' },
+  { key: 'week', label: '今週' },
+  { key: 'month', label: '今月' },
+];
+
+const SIZE_FILTERS: { key: SizeFilter; label: string }[] = [
+  { key: 'all', label: 'すべて' },
+  { key: 'gt1mb', label: '1MB+' },
+  { key: 'gt10mb', label: '10MB+' },
+  { key: 'gt100mb', label: '100MB+' },
+];
+
+function QuickChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '3px 10px',
+        borderRadius: 9999,
+        border: selected ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
+        background: selected ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
+        color: selected ? 'var(--color-accent)' : 'var(--color-muted)',
+        fontSize: 11,
+        fontWeight: selected ? 500 : 400,
+        cursor: 'pointer',
+        fontFamily: 'var(--font-sans)',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

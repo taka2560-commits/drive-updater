@@ -41,5 +41,9 @@ export type SortDir = 'asc' | 'desc';
 export type ViewMode = 'list' | 'grid';
 export type Layout = 'A' | 'B' | 'C';
 
+// Quick filters (FilterBar). 'all' = no constraint.
+export type DateRange = 'all' | 'today' | 'week' | 'month';
+export type SizeFilter = 'all' | 'gt1mb' | 'gt10mb' | 'gt100mb';
+
 export type Screen = 'main' | 'starred' | 'settings';
 export type SettingsTab = 'appearance' | 'exclude' | 'folders' | 'about';

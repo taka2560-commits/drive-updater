@@ -27,6 +27,22 @@ function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
 }
 
+/**
+ * Start-of-period timestamp for the quick date-range filter.
+ * 'today' = 今日0時 / 'week' = 月曜始まりの今週 / 'month' = 今月1日.
+ * Returns 0 for 'all' (no constraint).
+ */
+export function dateRangeStart(range: 'all' | 'today' | 'week' | 'month', now = new Date()): number {
+  if (range === 'all') return 0;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (range === 'today') return startOfToday;
+  if (range === 'week') {
+    const daysFromMonday = (now.getDay() + 6) % 7;
+    return startOfToday - daysFromMonday * DAY;
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1).getTime(); // month
+}
+
 /** Bucket files by recency (今日 / 昨日 / 今週 / 先週 / 今月 / それ以前). */
 export function groupByTime(files: FileEntry[], now = new Date()): FileGroup[] {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();

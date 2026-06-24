@@ -395,11 +395,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pdf: 0,
       image: 0,
       slides: 0,
+      cad: 0,
       other: 0,
     } as Record<FileTypeFilter, number>;
     for (const f of searchMatched) {
       if (f.isDir) continue;
-      (['docs', 'sheets', 'pdf', 'image', 'slides', 'other'] as const).forEach((t) => {
+      (['docs', 'sheets', 'pdf', 'image', 'slides', 'cad', 'other'] as const).forEach((t) => {
         if (matchesType(f.ext, t)) counts[t]++;
       });
     }

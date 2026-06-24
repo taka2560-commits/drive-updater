@@ -33,6 +33,7 @@ export type FileTypeFilter =
   | 'pdf'
   | 'image'
   | 'slides'
+  | 'cad'
   | 'other';
 
 export type SortKey = 'modified' | 'name' | 'size';

@@ -4,6 +4,7 @@ import {
   MonitorPlay,
   Image as ImageIcon,
   File as FileIcon,
+  Ruler,
   type LucideIcon,
 } from 'lucide-react';
 import type { FileTypeFilter } from '../types';
@@ -39,6 +40,9 @@ const EXT_META: Record<string, FileTypeMeta> = {
   webp: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'WebP画像' },
   svg: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'SVG画像' },
   bmp: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'BMP画像' },
+
+  dwg: { Icon: Ruler, color: '#5DB8D4', label: 'AutoCAD図面' },
+  dxf: { Icon: Ruler, color: '#5DB8D4', label: 'CAD交換形式' },
 };
 
 const FALLBACK: FileTypeMeta = {
@@ -57,6 +61,7 @@ const FILTER_EXTS: Record<Exclude<FileTypeFilter, 'all' | 'other'>, string[]> = 
   pdf: ['pdf'],
   image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'],
   slides: ['ppt', 'pptx', 'key'],
+  cad: ['dwg', 'dxf'],
 };
 
 const ALL_KNOWN = new Set(Object.values(FILTER_EXTS).flat());
@@ -81,5 +86,6 @@ export const TYPE_CHIPS: TypeChipDef[] = [
   { key: 'pdf', label: 'PDF', Icon: FileText },
   { key: 'image', label: 'Image', Icon: ImageIcon },
   { key: 'slides', label: 'Slides', Icon: MonitorPlay },
+  { key: 'cad', label: 'CAD', Icon: Ruler },
   { key: 'other', label: 'Other' },
 ];

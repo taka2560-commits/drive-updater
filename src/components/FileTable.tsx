@@ -98,8 +98,14 @@ const VTableRow = ({
 
 // Stable component overrides for TableVirtuoso — never recreated.
 const TABLE_COMPONENTS = {
+  // border-collapse MUST stay "separate": TableVirtuoso offsets rows via tbody
+  // padding, which collapsed borders ignore — causing rows to overlap/ghost on
+  // scroll. border-spacing:0 keeps the visual identical to a collapsed table.
   Table: ({ style, ...props }: React.ComponentPropsWithoutRef<'table'>) => (
-    <table style={{ ...style, width: '100%', borderCollapse: 'collapse' }} {...props} />
+    <table
+      style={{ ...style, width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}
+      {...props}
+    />
   ),
   TableHead: forwardRef<HTMLTableSectionElement, React.ComponentPropsWithoutRef<'thead'>>(
     (props, ref) => (

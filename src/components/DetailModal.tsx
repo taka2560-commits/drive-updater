@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Star, X, ExternalLink, FolderOpen, Copy, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useStore } from '../storeContext';
-import { fileMeta, matchesType } from '../lib/fileType';
+import { fileMeta, matchesType, isTextPreviewable } from '../lib/fileType';
 import { formatBytes, formatDateTime, formatRelativeTime } from '../lib/format';
 import { Button } from './ui';
 import type { FileEntry } from '../types';
@@ -19,9 +19,11 @@ export function DetailModal({ file }: { file: FileEntry }) {
 
   const meta = fileMeta(file.ext);
   const isImage = matchesType(file.ext, 'image');
+  const isText = !file.isDir && isTextPreviewable(file.ext);
 
   // Image thumbnail (Electron only), tagged by path to avoid stale results.
   const [preview, setPreview] = useState<{ path: string; data: string } | null>(null);
+  const [text, setText] = useState<{ path: string; data: string } | null>(null);
   useEffect(() => {
     if (!isImage || file.isDir) return;
     const api = window.localUpdater;
@@ -34,7 +36,20 @@ export function DetailModal({ file }: { file: FileEntry }) {
       cancelled = true;
     };
   }, [file.path, isImage, file.isDir]);
+  useEffect(() => {
+    if (!isText) return;
+    const api = window.localUpdater;
+    if (!api?.readText) return;
+    let cancelled = false;
+    api.readText(file.path).then((data) => {
+      if (!cancelled && data != null) setText({ path: file.path, data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file.path, isText]);
   const previewSrc = preview && preview.path === file.path ? preview.data : null;
+  const textSrc = text && text.path === file.path ? text.data : null;
 
   // Keyboard (SPEC_C §6.5).
   useEffect(() => {
@@ -131,9 +146,27 @@ export function DetailModal({ file }: { file: FileEntry }) {
         {/* Body */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {/* Preview */}
-          <div style={{ width: 320, flexShrink: 0, background: 'var(--color-log-bg)', borderRight: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ width: 320, flexShrink: 0, background: 'var(--color-log-bg)', borderRight: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: previewSrc || textSrc != null ? 0 : 16 }}>
             {previewSrc ? (
-              <img src={previewSrc} alt={file.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              <img src={previewSrc} alt={file.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: 16 }} />
+            ) : textSrc != null ? (
+              <pre
+                style={{
+                  margin: 0,
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'auto',
+                  padding: 14,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  color: 'var(--color-text)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {textSrc}
+              </pre>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--color-muted)' }}>
                 <meta.Icon size={56} color={meta.color} />

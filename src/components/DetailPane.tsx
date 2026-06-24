@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Star, X, ExternalLink, FolderOpen, Copy, History, MousePointerClick, Trash2 } from 'lucide-react';
 import { Button } from './ui';
 import { useStore } from '../storeContext';
-import { fileMeta, matchesType } from '../lib/fileType';
+import { fileMeta, matchesType, isTextPreviewable } from '../lib/fileType';
 import { formatBytes, formatDateTime, formatRelativeTime } from '../lib/format';
 import type { FileEntry } from '../types';
 
@@ -98,15 +98,17 @@ function Detail({ file }: { file: FileEntry }) {
   const { requestDelete } = useStore();
   const meta = fileMeta(file.ext);
   const isImage = matchesType(file.ext, 'image');
+  const isText = !file.isDir && isTextPreviewable(file.ext);
 
   // Load a real thumbnail for images via Electron (null in browser/dev mode).
   // State is tagged with the source path so a stale async result for a
   // previously-selected file is never shown after switching selection.
   const [preview, setPreview] = useState<{ path: string; data: string } | null>(null);
   const [dimensions, setDimensions] = useState<{ path: string; value: string } | null>(null);
+  const [text, setText] = useState<{ path: string; data: string } | null>(null);
   useEffect(() => {
     if (!isImage || file.isDir) return;
-    const api = (window as unknown as { localUpdater?: { readImage: (p: string) => Promise<string | null> } }).localUpdater;
+    const api = window.localUpdater;
     if (!api?.readImage) return;
     let cancelled = false;
     api.readImage(file.path).then((data) => {
@@ -117,8 +119,23 @@ function Detail({ file }: { file: FileEntry }) {
     };
   }, [file.path, isImage, file.isDir]);
 
+  // Load a text preview for text-like files (Electron only).
+  useEffect(() => {
+    if (!isText) return;
+    const api = window.localUpdater;
+    if (!api?.readText) return;
+    let cancelled = false;
+    api.readText(file.path).then((data) => {
+      if (!cancelled && data != null) setText({ path: file.path, data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file.path, isText]);
+
   const previewSrc = preview && preview.path === file.path ? preview.data : null;
   const dimsLabel = dimensions && dimensions.path === file.path ? dimensions.value : null;
+  const textSrc = text && text.path === file.path ? text.data : null;
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: 18 }}>
@@ -148,6 +165,25 @@ function Detail({ file }: { file: FileEntry }) {
             }}
             style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
           />
+        ) : textSrc != null ? (
+          <pre
+            style={{
+              margin: 0,
+              width: '100%',
+              height: '100%',
+              overflow: 'auto',
+              padding: 10,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              lineHeight: 1.5,
+              color: 'var(--color-text)',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              textAlign: 'left',
+            }}
+          >
+            {textSrc}
+          </pre>
         ) : (
           <div
             style={{

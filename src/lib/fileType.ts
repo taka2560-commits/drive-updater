@@ -66,6 +66,17 @@ const FILTER_EXTS: Record<Exclude<FileTypeFilter, 'all' | 'other'>, string[]> = 
 
 const ALL_KNOWN = new Set(Object.values(FILTER_EXTS).flat());
 
+// Extensions whose contents are worth previewing as plain text.
+const TEXT_PREVIEW_EXTS = new Set([
+  'txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'json', 'xml', 'yml', 'yaml',
+  'js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'html', 'htm', 'py', 'rb', 'go',
+  'rs', 'java', 'c', 'h', 'cpp', 'sh', 'bat', 'ini', 'toml', 'env', 'sql',
+]);
+
+export function isTextPreviewable(ext: string): boolean {
+  return TEXT_PREVIEW_EXTS.has(ext.toLowerCase());
+}
+
 export function matchesType(ext: string, filter: FileTypeFilter): boolean {
   const e = ext.toLowerCase();
   if (filter === 'all') return true;

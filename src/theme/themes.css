@@ -1,33 +1,90 @@
 /* =============================================================
    LocalUpdater — Theme tokens (Earth / Night / Light)
    --------------------------------------------------------------
-   Earth / Night reproduce the SiteSorter design-system tokens
-   (the values actually rendered in "LocalUpdater UI Concepts.dc.html").
-   Light reproduces the user-provided System × Earth override.
+   Canonical tokens reproduced verbatim from the Claude Design
+   handoff bundle (localupdater-design-system/project/tokens/*.css).
+   Legacy `--color-*` aliases below map onto the canonical names so
+   existing components keep rendering while we migrate.
 
    Switch via document.documentElement.dataset.theme = 'earth'|'night'|'light'
    ============================================================= */
 
-/* ----- DEFAULT: Earth (SiteSorter Earth) ----- */
+/* ----- DEFAULT: Earth (steel blue + warm amber) ----- */
 :root,
 :root[data-theme='earth'] {
-  --color-primary: #31658f;
-  --color-primary-hi: #3a77a8;
-  --color-secondary: #246169;
-  --color-accent: #f5993d;
+  /* Raw palette */
+  --steel-950: #131820;
+  --steel-900: #161c24;
+  --steel-850: #181f27;
+  --steel-800: #1b232c;
+  --steel-750: #1f2832;
+  --steel-700: #232d38;
+  --steel-650: #2a3543;
+  --steel-600: #303b4a;
+  --steel-500: #3a4658;
+  --steel-400: #515e72;
+  --steel-300: #6b7888;
 
-  --color-bg: #222629;
-  --color-surface: #2b3036;
-  --color-surface-2: #262b2f;
-  --color-log-bg: #1b1f22;
-  --color-border: #3a4046;
+  --amber-500: #e8a05a; /* primary accent */
+  --amber-400: #ecb078;
+  --sky-500: #7ba9ce; /* brand */
+  --sky-400: #92bad9;
+  --mint-500: #6fb68c;
+  --rose-500: #d87060;
+  --gold-500: #e8b45a;
 
-  --color-text: #eff2f5;
-  --color-muted: #9aa4ad;
-  --color-head-text: #7fb4d9;
-  --color-sec-text: #7fcbd4;
-  --color-disabled: #5a636b;
+  /* Surfaces */
+  --bg-titlebar: var(--steel-900);
+  --bg-app: var(--steel-800);
+  --bg-sidebar: var(--steel-850);
+  --bg-statusbar: var(--steel-900);
 
+  --surface: var(--steel-700);
+  --surface-elevated: var(--steel-650);
+  --surface-hover: var(--steel-600);
+  --surface-selected: rgba(232, 160, 90, 0.1);
+  --surface-overlay: rgba(0, 0, 0, 0.55);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-accent: var(--amber-500);
+
+  /* Text */
+  --text-primary: #e6e9ef;
+  --text-secondary: #9aa4b0;
+  --text-muted: #6b7585;
+  --text-faint: #4f5867;
+  --text-on-accent: #1b232c;
+  --text-brand: var(--sky-500);
+  --text-accent: var(--amber-500);
+  --text-link: var(--sky-400);
+
+  /* Semantic */
+  --accent: var(--amber-500);
+  --accent-hover: var(--amber-400);
+  --accent-soft: rgba(232, 160, 90, 0.16);
+  --accent-soft-2: rgba(232, 160, 90, 0.28);
+  --brand: var(--sky-500);
+
+  --success: var(--mint-500);
+  --warning: var(--gold-500);
+  --danger: var(--rose-500);
+  --info: var(--sky-500);
+
+  /* rgb of accent for rgba() composition in JS / inline styles */
+  --accent-rgb: 232, 160, 90;
+
+  /* Heatmap scale (calendar view) — 6 levels (0 none … 5 max) */
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(232, 160, 90, 0.18);
+  --heat-2: rgba(232, 160, 90, 0.34);
+  --heat-3: rgba(232, 160, 90, 0.5);
+  --heat-4: rgba(232, 160, 90, 0.7);
+  --heat-5: var(--amber-500);
+
+  /* Legacy semantic badge pairs (bg + text) */
   --color-success: #2d6a3f;
   --color-success-text: #7fd6a0;
   --color-danger: #6a2d2d;
@@ -35,80 +92,112 @@
   --color-warn: #6a4e2d;
   --color-warn-text: #f5c47f;
 
-  /* accent tints for activity strip / selection (theme-specific) */
-  --accent-rgb: 245, 153, 61;
-
-  /* heatmap levels (C layout) */
-  --heat-0: #3a4046;
-  --heat-1: rgba(245, 153, 61, 0.2);
-  --heat-2: rgba(245, 153, 61, 0.35);
-  --heat-3: rgba(245, 153, 61, 0.55);
-  --heat-4: rgba(245, 153, 61, 0.8);
-  --heat-5: var(--color-accent);
-
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--amber-500);
 }
 
-/* ----- Night (SiteSorter Night) ----- */
+/* ----- Night (deep navy + bright blue + yellow) ----- */
 :root[data-theme='night'] {
-  --color-primary: #1f74c1;
-  --color-primary-hi: #2b86d9;
-  --color-secondary: #183095;
-  --color-accent: #f5cd3d;
+  --bg-titlebar: #0a1126;
+  --bg-app: #0e1530;
+  --bg-sidebar: #0b1228;
+  --bg-statusbar: #0a1126;
 
-  --color-bg: #181b1e;
-  --color-surface: #24292e;
-  --color-surface-2: #1f2428;
-  --color-log-bg: #121518;
-  --color-border: #30363d;
+  --surface: #131c3d;
+  --surface-elevated: #1a2553;
+  --surface-hover: #1f2c62;
+  --surface-selected: rgba(82, 134, 255, 0.14);
+  --surface-overlay: rgba(0, 0, 0, 0.6);
 
-  --color-text: #e0e5ea;
-  --color-muted: #8b949e;
-  --color-head-text: #7fb0e0;
-  --color-sec-text: #9db3f0;
-  --color-disabled: #586069;
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-accent: #5286ff;
 
-  --color-success: #2d6a3f;
-  --color-success-text: #7fd6a0;
-  --color-danger: #6a2d2d;
-  --color-danger-text: #f5a0a0;
-  --color-warn: #6a4e2d;
-  --color-warn-text: #f5cd7a;
+  --text-primary: #eceffb;
+  --text-secondary: #9aa6c9;
+  --text-muted: #6a769b;
+  --text-faint: #4a5478;
+  --text-on-accent: #0a1126;
+  --text-brand: #5286ff;
+  --text-accent: #ffd23f;
+  --text-link: #82a6ff;
 
-  --accent-rgb: 245, 205, 61;
+  --accent: #ffd23f;
+  --accent-hover: #ffdb6a;
+  --accent-soft: rgba(255, 210, 63, 0.16);
+  --accent-soft-2: rgba(255, 210, 63, 0.28);
+  --brand: #5286ff;
 
-  --heat-0: #2a2e32;
-  --heat-1: rgba(245, 205, 61, 0.2);
-  --heat-2: rgba(245, 205, 61, 0.4);
-  --heat-3: rgba(245, 205, 61, 0.6);
-  --heat-4: rgba(245, 205, 61, 0.85);
-  --heat-5: var(--color-accent);
+  --success: #4ed2a2;
+  --warning: #ffd23f;
+  --danger: #ff6e70;
+  --info: #5286ff;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
+  --accent-rgb: 255, 210, 63;
+
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(82, 134, 255, 0.2);
+  --heat-2: rgba(82, 134, 255, 0.38);
+  --heat-3: rgba(82, 134, 255, 0.56);
+  --heat-4: rgba(82, 134, 255, 0.74);
+  --heat-5: #5286ff;
+
+  --color-success: #1e5a4a;
+  --color-success-text: #7fe6c0;
+  --color-danger: #5a2436;
+  --color-danger-text: #ff9aa0;
+  --color-warn: #5a4a1e;
+  --color-warn-text: #ffe07a;
+
+  --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px #ffd23f;
 }
 
-/* ----- Light (user-provided System × Earth tokens) ----- */
+/* ----- Light (mint + coral + white) ----- */
 :root[data-theme='light'] {
-  --color-primary: #5dcfaf;
-  --color-primary-hi: #4aba98;
-  --color-secondary: #39bac1;
-  --color-accent: #f5563d;
+  --bg-titlebar: #f4f6f8;
+  --bg-app: #fafbfc;
+  --bg-sidebar: #f1f3f6;
+  --bg-statusbar: #f4f6f8;
 
-  --color-bg: #fafbfb;
-  --color-surface: #ffffff;
-  --color-surface-2: #f1f4f2;
-  --color-log-bg: #f1f4f2;
-  --color-border: #dce3e0;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-hover: #f1f4f8;
+  --surface-selected: rgba(255, 122, 105, 0.1);
+  --surface-overlay: rgba(20, 30, 40, 0.35);
 
-  --color-text: #2a3f39;
-  --color-muted: #6a7c75;
-  --color-head-text: #2a8b85;
-  --color-sec-text: #2a8b85;
-  --color-disabled: #b5c0bb;
+  --border-subtle: rgba(20, 30, 40, 0.06);
+  --border: rgba(20, 30, 40, 0.12);
+  --border-strong: rgba(20, 30, 40, 0.2);
+  --border-accent: #ff7a69;
+
+  --text-primary: #1b232c;
+  --text-secondary: #5a6573;
+  --text-muted: #8a95a2;
+  --text-faint: #b2bcc8;
+  --text-on-accent: #ffffff;
+  --text-brand: #2eae92;
+  --text-accent: #ff7a69;
+  --text-link: #2eae92;
+
+  --accent: #ff7a69;
+  --accent-hover: #ff8e7e;
+  --accent-soft: rgba(255, 122, 105, 0.14);
+  --accent-soft-2: rgba(255, 122, 105, 0.26);
+  --brand: #2eae92;
+
+  --success: #2eae92;
+  --warning: #e8a93f;
+  --danger: #e03e3e;
+  --info: #4fa3d1;
+
+  --accent-rgb: 255, 122, 105;
+
+  --heat-0: rgba(20, 30, 40, 0.04);
+  --heat-1: rgba(46, 174, 146, 0.2);
+  --heat-2: rgba(46, 174, 146, 0.4);
+  --heat-3: rgba(46, 174, 146, 0.56);
+  --heat-4: rgba(46, 174, 146, 0.74);
+  --heat-5: #2eae92;
 
   --color-success: #c8ead8;
   --color-success-text: #2a8b5a;
@@ -117,48 +206,81 @@
   --color-warn: #ffe8c8;
   --color-warn-text: #a56b1a;
 
-  --accent-rgb: 245, 86, 61;
-
-  --heat-0: #dce3e0;
-  --heat-1: rgba(245, 86, 61, 0.18);
-  --heat-2: rgba(245, 86, 61, 0.35);
-  --heat-3: rgba(245, 86, 61, 0.55);
-  --heat-4: rgba(245, 86, 61, 0.8);
-  --heat-5: var(--color-accent);
-
-  /* Light theme needs real shadows for depth (spec §9.3 / FAQ) */
-  --shadow-sm: 0 1px 2px rgba(42, 63, 57, 0.1);
-  --shadow-md: 0 4px 12px rgba(42, 63, 57, 0.12);
-  --shadow-lg: 0 24px 64px rgba(42, 63, 57, 0.18);
+  --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px #ff7a69;
 }
 
 /* =============================================================
-   Typography / spacing / radius tokens (theme-independent)
+   Legacy `--color-*` aliases → canonical tokens
+   (theme-independent: they follow whichever theme is active)
    ============================================================= */
 :root {
-  --font-sans: 'Noto Sans JP', 'Yu Gothic UI', 'Meiryo UI', 'Hiragino Sans',
-    sans-serif;
-  --font-mono: 'Consolas', 'BIZ UDGothic', 'SF Mono', 'Courier New', monospace;
+  --color-bg: var(--bg-app);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-elevated);
+  --color-log-bg: var(--bg-sidebar);
+  --color-border: var(--border);
 
-  --text-xs: 10px;
-  --text-sm: 11px;
-  --text-base: 13px;
+  --color-text: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-disabled: var(--text-muted);
+  --color-head-text: var(--text-brand);
+  --color-sec-text: var(--text-brand);
+
+  --color-accent: var(--accent);
+  --color-primary: var(--brand);
+  --color-primary-hi: var(--brand);
+  --color-secondary: var(--brand);
+}
+
+/* =============================================================
+   Typography / spacing / radius / motion (theme-independent)
+   Reproduced from the handoff tokens/*.css.
+   ============================================================= */
+:root {
+  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: 'JetBrains Mono', 'Consolas', 'SFMono-Regular',
+    'Liberation Mono', monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px; /* default UI body */
   --text-md: 14px;
   --text-lg: 16px;
   --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
+  --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-full: 9999px;
+  --leading-tight: 1.3;
+  --leading-snug: 1.45;
+  --leading-normal: 1.65; /* JP body */
+  --leading-relaxed: 1.85;
 
-  --nav-item-height: 36px;
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0.01em;
+  --tracking-wide: 0.04em;
+  --tracking-caps: 0.08em;
 
+  /* 4px scale */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+  /* legacy spacing aliases */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -166,6 +288,56 @@
   --sp-5: 20px;
   --sp-6: 24px;
   --sp-8: 32px;
+
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-pill: 999px;
+  --radius-full: 9999px;
+
+  /* Fixed surface heights (handoff §Screens) */
+  --titlebar-height: 28px;
+  --header-height: 56px;
+  --statusbar-height: 28px;
+  --sidebar-width: 220px;
+  --details-width: 320px;
+  --nav-item-height: 36px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-instant: 80ms;
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 14px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 18px 38px rgba(0, 0, 0, 0.4);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --glow-accent: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft);
+}
+
+:root[data-theme='light'] {
+  --shadow-xs: 0 1px 0 rgba(20, 30, 40, 0.04);
+  --shadow-sm: 0 1px 2px rgba(20, 30, 40, 0.08), 0 0 0 1px rgba(20, 30, 40, 0.04);
+  --shadow-md: 0 4px 12px rgba(20, 30, 40, 0.1);
+  --shadow-lg: 0 16px 32px rgba(20, 30, 40, 0.14);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+  }
 }
 
 /* =============================================================
@@ -183,10 +355,15 @@ body {
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--bg-app);
+  color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+  font-feature-settings: 'palt'; /* proportional spacing for Japanese */
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -201,17 +378,25 @@ input {
   font-family: var(--font-sans);
 }
 
+::selection {
+  background: var(--accent-soft-2);
+  color: var(--text-primary);
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
+  background: var(--border);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-muted);
+  background: var(--border-strong);
+  background-clip: padding-box;
 }
 
 @keyframes lu-pulse {
@@ -237,9 +422,9 @@ input {
   }
 }
 
-/* focus ring (a11y, spec §11) */
+/* focus ring (a11y) */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

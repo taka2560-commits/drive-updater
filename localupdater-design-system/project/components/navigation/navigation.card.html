@@ -1,0 +1,80 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Navigation" subtitle="Toolbar / TabBar / SidebarItem / StatusBar" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { padding: 16px 20px; }
+  .stack > * + * { margin-top: 14px; }
+  .sb { width: 220px; padding: 8px; background: var(--bg-sidebar); border-radius: 8px; border: 1px solid var(--border-subtle); }
+  .label { font-size: 10px; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+</style>
+</head>
+<body data-theme="earth">
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="../../_ds_bundle.js"></script>
+  <script type="text/babel">
+    const { Toolbar, TabBar, SidebarItem, StatusBar, Icon, IconButton, Input } = window.LocalUpdaterDesignSystem_672f59;
+    function App() {
+      const [tab, setTab] = React.useState("list");
+      const tabs = [
+        { value: "list",     label: "リスト",     icon: <Icon name="list"     size={14} /> },
+        { value: "timeline", label: "タイムライン", icon: <Icon name="timeline" size={14} /> },
+        { value: "calendar", label: "カレンダー",   icon: <Icon name="calendar" size={14} /> },
+      ];
+      return (
+        <div className="stack">
+          <div>
+            <div className="label">Toolbar — view-mode segmented</div>
+            <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, overflow: "hidden" }}>
+              <Toolbar
+                left={<span style={{ fontSize: 15, fontWeight: 600 }}>最近更新されたファイル</span>}
+                center={<TabBar variant="segmented" value={tab} onChange={setTab} tabs={tabs} />}
+                right={<>
+                  <Input leftIcon="search" placeholder="検索…" style={{ width: 180 }} />
+                  <IconButton icon="refresh" title="再スキャン" />
+                  <IconButton icon="settings" title="設定" />
+                </>}
+              />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <div>
+              <div className="label">SidebarItem</div>
+              <div className="sb">
+                <SidebarItem icon={<Icon name="star" size={14} />} label="すべて" count={35} selected />
+                <SidebarItem icon={<Icon name="desktop" size={14} />} label="デスクトップ" count={12} />
+                <SidebarItem icon={<Icon name="folder" size={14} />} label="Dropbox" count={18} />
+                <SidebarItem icon={<Icon name="folder" size={14} />} label="図面"     depth={1} count={9} />
+                <SidebarItem icon={<Icon name="folder" size={14} />} label="ダウンロード" count={5} />
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="label">TabBar — underline</div>
+              <TabBar value="all" onChange={()=>{}} tabs={[
+                { value: "all",  label: "すべて",  count: 35 },
+                { value: "cad",  label: "CAD",     count: 12 },
+                { value: "img",  label: "画像",    count: 8 },
+                { value: "doc",  label: "ドキュメント", count: 10 },
+              ]} />
+              <div className="label" style={{ marginTop: 14 }}>StatusBar</div>
+              <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, overflow: "hidden" }}>
+                <StatusBar
+                  left={<><Icon name="folders" size={11} /> 監視中: 3 フォルダ</>}
+                  center={"35 件 · 109 MB"}
+                  right={"最終スキャン: 12:34"}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

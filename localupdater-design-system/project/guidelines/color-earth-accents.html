@@ -1,0 +1,31 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Earth — Accents" subtitle="プライマリ・ブランド・セマンティック" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 18px 20px; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .sw  { border-radius: 8px; padding: 10px 12px; height: 96px;
+         display: flex; flex-direction: column; justify-content: space-between;
+         color: var(--text-on-accent); }
+  .name{ font-size: 11px; font-weight: 600; }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; opacity: .85; }
+  .ondark { color: var(--text-primary); }
+</style>
+</head>
+<body data-theme="earth">
+  <div class="row">
+    <div class="sw" style="background:var(--accent)">      <div class="name">accent</div>  <div class="hex">#E8A05A</div></div>
+    <div class="sw" style="background:var(--brand)">       <div class="name">brand</div>   <div class="hex">#7BA9CE</div></div>
+    <div class="sw" style="background:var(--success)">     <div class="name">success</div> <div class="hex">#6FB68C</div></div>
+    <div class="sw" style="background:var(--warning)">     <div class="name">warning</div> <div class="hex">#E8B45A</div></div>
+    <div class="sw" style="background:var(--danger)">      <div class="name">danger</div>  <div class="hex">#D87060</div></div>
+    <div class="sw ondark" style="background:var(--accent-soft); border:1px solid var(--accent)">
+      <div class="name" style="color:var(--accent)">accent-soft</div>
+      <div class="hex" style="color:var(--accent)">rgba 16%</div>
+    </div>
+  </div>
+</body>
+</html>

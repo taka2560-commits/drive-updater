@@ -1,0 +1,20 @@
+:root {
+  /* Soft shadows tuned for dark steel surfaces — light theme uses
+     slightly stronger casts because the base is white. */
+  --shadow-xs:   0 1px 0 rgba(0, 0, 0, 0.25);
+  --shadow-sm:   0 2px 4px rgba(0, 0, 0, 0.30);
+  --shadow-md:   0 6px 14px rgba(0, 0, 0, 0.32);
+  --shadow-lg:   0 18px 38px rgba(0, 0, 0, 0.40);
+  --shadow-inset:inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* Selected-card glow: warm accent, very low alpha */
+  --glow-accent: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft);
+}
+
+[data-theme="light"] {
+  --shadow-xs:   0 1px 0 rgba(20, 30, 40, 0.04);
+  --shadow-sm:   0 1px 2px rgba(20, 30, 40, 0.08), 0 0 0 1px rgba(20, 30, 40, 0.04);
+  --shadow-md:   0 4px 12px rgba(20, 30, 40, 0.10);
+  --shadow-lg:   0 16px 32px rgba(20, 30, 40, 0.14);
+  --shadow-inset:inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}

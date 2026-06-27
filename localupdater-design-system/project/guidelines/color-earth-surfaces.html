@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Earth — Surfaces" subtitle="標準テーマ：スチールブルー基調" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 18px 20px; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .sw  { border-radius: 8px; padding: 10px 12px; height: 96px;
+         display: flex; flex-direction: column; justify-content: space-between;
+         border: 1px solid var(--border-subtle); }
+  .name{ font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+</style>
+</head>
+<body data-theme="earth">
+  <div class="row">
+    <div class="sw" style="background:var(--bg-titlebar)">      <div class="name">titlebar</div><div class="hex">#161C24</div></div>
+    <div class="sw" style="background:var(--bg-sidebar)">        <div class="name">sidebar</div> <div class="hex">#181F27</div></div>
+    <div class="sw" style="background:var(--bg-app)">            <div class="name">app</div>     <div class="hex">#1B232C</div></div>
+    <div class="sw" style="background:var(--surface)">           <div class="name">surface</div> <div class="hex">#232D38</div></div>
+    <div class="sw" style="background:var(--surface-elevated)">  <div class="name">elevated</div><div class="hex">#2A3543</div></div>
+    <div class="sw" style="background:var(--surface-hover)">     <div class="name">hover</div>   <div class="hex">#303B4A</div></div>
+  </div>
+</body>
+</html>

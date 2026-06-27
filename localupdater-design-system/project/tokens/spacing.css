@@ -1,0 +1,29 @@
+:root {
+  /* 4px base scale ------------------------------------------------------- */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+
+  /* Semantic layout aliases --------------------------------------------- */
+  --gutter-window: 24px;       /* main content side padding */
+  --gutter-sidebar: 16px;      /* sidebar internal padding */
+  --gutter-section: 32px;      /* between major sections */
+  --gutter-row: 12px;          /* table row vertical padding */
+  --gutter-chip: 8px 12px; /* @kind spacing */
+
+  --header-height: 56px;
+  --titlebar-height: 28px;
+  --statusbar-height: 28px;
+  --sidebar-width: 180px;
+  --details-width: 320px;
+}

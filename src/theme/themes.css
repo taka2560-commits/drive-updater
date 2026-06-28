@@ -84,13 +84,12 @@
   --heat-4: rgba(232, 160, 90, 0.7);
   --heat-5: var(--amber-500);
 
-  /* Legacy semantic badge pairs (bg + text) */
-  --color-success: #2d6a3f;
-  --color-success-text: #7fd6a0;
-  --color-danger: #6a2d2d;
-  --color-danger-text: #f5a0a0;
-  --color-warn: #6a4e2d;
-  --color-warn-text: #f5c47f;
+  --success-bg: #2d6a3f;
+  --success-text: #7fd6a0;
+  --danger-bg: #6a2d2d;
+  --danger-text: #f5a0a0;
+  --warn-bg: #6a4e2d;
+  --warn-text: #f5c47f;
 
   --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--amber-500);
 }
@@ -142,12 +141,12 @@
   --heat-4: rgba(82, 134, 255, 0.74);
   --heat-5: #5286ff;
 
-  --color-success: #1e5a4a;
-  --color-success-text: #7fe6c0;
-  --color-danger: #5a2436;
-  --color-danger-text: #ff9aa0;
-  --color-warn: #5a4a1e;
-  --color-warn-text: #ffe07a;
+  --success-bg: #1e5a4a;
+  --success-text: #7fe6c0;
+  --danger-bg: #5a2436;
+  --danger-text: #ff9aa0;
+  --warn-bg: #5a4a1e;
+  --warn-text: #ffe07a;
 
   --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px #ffd23f;
 }
@@ -199,37 +198,14 @@
   --heat-4: rgba(46, 174, 146, 0.74);
   --heat-5: #2eae92;
 
-  --color-success: #c8ead8;
-  --color-success-text: #2a8b5a;
-  --color-danger: #fce0dc;
-  --color-danger-text: #c44030;
-  --color-warn: #ffe8c8;
-  --color-warn-text: #a56b1a;
+  --success-bg: #c8ead8;
+  --success-text: #2a8b5a;
+  --danger-bg: #fce0dc;
+  --danger-text: #c44030;
+  --warn-bg: #ffe8c8;
+  --warn-text: #a56b1a;
 
   --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px #ff7a69;
-}
-
-/* =============================================================
-   Legacy `--color-*` aliases → canonical tokens
-   (theme-independent: they follow whichever theme is active)
-   ============================================================= */
-:root {
-  --color-bg: var(--bg-app);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-elevated);
-  --color-log-bg: var(--bg-sidebar);
-  --color-border: var(--border);
-
-  --color-text: var(--text-primary);
-  --color-muted: var(--text-secondary);
-  --color-disabled: var(--text-muted);
-  --color-head-text: var(--text-brand);
-  --color-sec-text: var(--text-brand);
-
-  --color-accent: var(--accent);
-  --color-primary: var(--brand);
-  --color-primary-hi: var(--brand);
-  --color-secondary: var(--brand);
 }
 
 /* =============================================================

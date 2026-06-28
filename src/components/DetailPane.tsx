@@ -14,8 +14,8 @@ export function DetailPane() {
       style={{
         width: 380,
         flexShrink: 0,
-        background: 'var(--color-surface)',
-        borderLeft: '1px solid var(--color-border)',
+        background: 'var(--surface)',
+        borderLeft: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -24,7 +24,7 @@ export function DetailPane() {
       <div
         style={{
           padding: '14px 18px',
-          borderBottom: '1px solid var(--color-border)',
+          borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -34,7 +34,7 @@ export function DetailPane() {
           style={{
             fontSize: 10,
             fontWeight: 700,
-            color: 'var(--color-disabled)',
+            color: 'var(--text-muted)',
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             flex: 1,
@@ -50,8 +50,8 @@ export function DetailPane() {
           >
             <Star
               size={14}
-              color={isStarred(selectedFile.path) ? 'var(--color-accent)' : 'var(--color-muted)'}
-              fill={isStarred(selectedFile.path) ? 'var(--color-accent)' : 'none'}
+              color={isStarred(selectedFile.path) ? 'var(--accent)' : 'var(--text-muted)'}
+              fill={isStarred(selectedFile.path) ? 'var(--accent)' : 'none'}
             />
           </button>
         )}
@@ -60,7 +60,7 @@ export function DetailPane() {
           aria-label="詳細を閉じる"
           style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
         >
-          <X size={14} color="var(--color-muted)" />
+          <X size={14} color="var(--text-muted)" />
         </button>
       </div>
 
@@ -81,10 +81,10 @@ function EmptyDetail() {
         gap: 12,
         padding: 24,
         textAlign: 'center',
-        color: 'var(--color-muted)',
+        color: 'var(--text-secondary)',
       }}
     >
-      <MousePointerClick size={36} color="var(--color-disabled)" />
+      <MousePointerClick size={36} color="var(--text-muted)" />
       <div style={{ fontSize: 12, lineHeight: 1.6 }}>
         ファイルを選択すると
         <br />
@@ -100,9 +100,6 @@ function Detail({ file }: { file: FileEntry }) {
   const isImage = matchesType(file.ext, 'image');
   const isText = !file.isDir && isTextPreviewable(file.ext);
 
-  // Load a real thumbnail for images via Electron (null in browser/dev mode).
-  // State is tagged with the source path so a stale async result for a
-  // previously-selected file is never shown after switching selection.
   const [preview, setPreview] = useState<{ path: string; data: string } | null>(null);
   const [dimensions, setDimensions] = useState<{ path: string; value: string } | null>(null);
   const [text, setText] = useState<{ path: string; data: string } | null>(null);
@@ -119,7 +116,6 @@ function Detail({ file }: { file: FileEntry }) {
     };
   }, [file.path, isImage, file.isDir]);
 
-  // Load a text preview for text-like files (Electron only).
   useEffect(() => {
     if (!isText) return;
     const api = window.localUpdater;
@@ -144,9 +140,9 @@ function Detail({ file }: { file: FileEntry }) {
         style={{
           width: '100%',
           height: 200,
-          background: 'var(--color-log-bg)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 6,
+          background: 'var(--bg-sidebar)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -176,7 +172,7 @@ function Detail({ file }: { file: FileEntry }) {
               fontFamily: 'var(--font-mono)',
               fontSize: 10,
               lineHeight: 1.5,
-              color: 'var(--color-text)',
+              color: 'var(--text-primary)',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               textAlign: 'left',
@@ -189,14 +185,14 @@ function Detail({ file }: { file: FileEntry }) {
             style={{
               position: 'relative',
               textAlign: 'center',
-              color: 'var(--color-muted)',
+              color: 'var(--text-secondary)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               gap: 8,
             }}
           >
-            <meta.Icon size={40} color={isImage ? 'var(--color-sec-text)' : meta.color} />
+            <meta.Icon size={40} color={isImage ? 'var(--text-brand)' : meta.color} />
             <div style={{ fontSize: 11 }}>{meta.label}</div>
           </div>
         )}
@@ -237,7 +233,7 @@ function Detail({ file }: { file: FileEntry }) {
         style={{
           fontSize: 14,
           fontWeight: 700,
-          color: 'var(--color-text)',
+          color: 'var(--text-primary)',
           margin: '0 0 4px',
           lineHeight: 1.4,
           wordBreak: 'break-all',
@@ -245,7 +241,7 @@ function Detail({ file }: { file: FileEntry }) {
       >
         {file.name}
       </h2>
-      <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--color-muted)', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>
         <span>{formatBytes(file.sizeBytes)}</span>
         <span>·</span>
         <span>{meta.label}</span>
@@ -284,7 +280,7 @@ function Detail({ file }: { file: FileEntry }) {
           </div>
         )}
         <Button
-          variant="ghost" size="md" Icon={Trash2} style={{ width: '100%', color: '#D46A6A' }}
+          variant="ghost" size="md" Icon={Trash2} style={{ width: '100%', color: 'var(--danger)' }}
           onClick={() => requestDelete([file.path])}
         >
           ゴミ箱に移動
@@ -296,13 +292,13 @@ function Detail({ file }: { file: FileEntry }) {
         <SectionLabel>ローカルパス</SectionLabel>
         <div
           style={{
-            background: 'var(--color-log-bg)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 6,
+            background: 'var(--bg-sidebar)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
             padding: '8px 10px',
             fontFamily: 'var(--font-mono)',
             fontSize: 10,
-            color: 'var(--color-muted)',
+            color: 'var(--text-secondary)',
             wordBreak: 'break-all',
             lineHeight: 1.5,
           }}
@@ -325,12 +321,12 @@ function Detail({ file }: { file: FileEntry }) {
               top: 6,
               bottom: 6,
               width: 1,
-              background: 'var(--color-border)',
+              background: 'var(--border)',
             }}
           />
-          <TimelineNode color="var(--color-accent)" title="最終更新" abs={formatDateTime(file.modifiedAt)} rel={formatRelativeTime(file.modifiedAt)} />
-          <TimelineNode color="var(--color-sec-text)" title="最終アクセス" abs={formatDateTime(file.accessedAt)} />
-          <TimelineNode color="var(--color-muted)" title="作成" abs={formatDateTime(file.createdAt)} last />
+          <TimelineNode color="var(--accent)" title="最終更新" abs={formatDateTime(file.modifiedAt)} rel={formatRelativeTime(file.modifiedAt)} />
+          <TimelineNode color="var(--text-brand)" title="最終アクセス" abs={formatDateTime(file.accessedAt)} />
+          <TimelineNode color="var(--text-secondary)" title="作成" abs={formatDateTime(file.createdAt)} last />
         </div>
       </div>
     </div>
@@ -343,7 +339,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       style={{
         fontSize: 10,
         fontWeight: 700,
-        color: 'var(--color-disabled)',
+        color: 'var(--text-muted)',
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
         marginBottom: 8,
@@ -378,12 +374,12 @@ function TimelineNode({
           height: 11,
           background: color,
           borderRadius: '50%',
-          border: '2px solid var(--color-surface)',
+          border: '2px solid var(--surface)',
         }}
       />
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>{title}</div>
-      <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>{abs}</div>
-      {rel && <div style={{ fontSize: 10, color: 'var(--color-accent)', marginTop: 1 }}>{rel}</div>}
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{abs}</div>
+      {rel && <div style={{ fontSize: 10, color: 'var(--accent)', marginTop: 1 }}>{rel}</div>}
     </div>
   );
 }

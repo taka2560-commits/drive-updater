@@ -1,9 +1,9 @@
 /**
  * LocalUpdater — Theme tokens helper.
  *
- * Prefer CSS variables `var(--color-*)` in components. This module is for
- * the few places that need a color value in JS (e.g. the activity strip
- * gradient, theme swatches in Settings).
+ * Prefer CSS custom properties in components. This module is for
+ * the few places that need a color value in JS (e.g. theme swatches
+ * in Settings).
  */
 
 export type ThemeName = 'earth' | 'night' | 'light';

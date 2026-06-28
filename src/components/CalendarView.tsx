@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
+import { ContextMenu, type MenuState } from './ContextMenu';
 import { formatBytes, formatActivityLabel } from '../lib/format';
 import { buildSummary } from '../lib/heatmap';
 import type { FileEntry } from '../types';
@@ -16,7 +17,25 @@ function heat(count: number): number {
 }
 
 export function CalendarView() {
-  const { folderFiles, filteredFiles, selectOne } = useStore();
+  const {
+    folderFiles,
+    filteredFiles,
+    selectOne,
+    selectedPaths,
+    isStarred,
+    toggleStar,
+    browseInto,
+    setEditingPath,
+    requestDelete,
+  } = useStore();
+
+  const [menu, setMenu] = useState<MenuState | null>(null);
+
+  const openMenu = (e: React.MouseEvent, file: FileEntry) => {
+    e.preventDefault();
+    if (!selectedPaths.has(file.path)) selectOne(file.path);
+    setMenu({ x: e.clientX, y: e.clientY, file });
+  };
 
   const summary = useMemo(() => buildSummary(folderFiles), [folderFiles]);
 
@@ -222,20 +241,33 @@ export function CalendarView() {
             </div>
           ) : (
             focusFiles.map((f) => (
-              <SidePanelRow key={f.path} file={f} onSelect={() => selectOne(f.path)} />
+              <SidePanelRow key={f.path} file={f} onSelect={() => selectOne(f.path)} onContextMenu={(e) => openMenu(e, f)} />
             ))
           )}
         </div>
       </aside>
+
+      {menu && (
+        <ContextMenu
+          state={menu}
+          starred={isStarred(menu.file.path)}
+          onClose={() => setMenu(null)}
+          onOpenFolder={() => browseInto(menu.file.path)}
+          onToggleStar={() => toggleStar(menu.file.path)}
+          onRename={() => setEditingPath(menu.file.path)}
+          onDelete={() => requestDelete([menu.file.path])}
+        />
+      )}
     </div>
   );
 }
 
-function SidePanelRow({ file, onSelect }: { file: FileEntry; onSelect: () => void }) {
+function SidePanelRow({ file, onSelect, onContextMenu }: { file: FileEntry; onSelect: () => void; onContextMenu: (e: React.MouseEvent) => void }) {
   const [hover, setHover] = useState(false);
   return (
     <div
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

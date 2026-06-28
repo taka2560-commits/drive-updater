@@ -2,12 +2,31 @@ import { useMemo, useState } from 'react';
 import { Star, Folder } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
+import { ContextMenu, type MenuState } from './ContextMenu';
 import { groupByTime } from '../lib/grouping';
 import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
 import type { FileEntry } from '../types';
 
 export function FileGroupList() {
-  const { filteredFiles, folders, isStarred, toggleStar, browseInto, selectOne } = useStore();
+  const {
+    filteredFiles,
+    folders,
+    isStarred,
+    toggleStar,
+    browseInto,
+    selectOne,
+    selectedPaths,
+    setEditingPath,
+    requestDelete,
+  } = useStore();
+
+  const [menu, setMenu] = useState<MenuState | null>(null);
+
+  const openMenu = (e: React.MouseEvent, file: FileEntry) => {
+    e.preventDefault();
+    if (!selectedPaths.has(file.path)) selectOne(file.path);
+    setMenu({ x: e.clientX, y: e.clientY, file });
+  };
 
   const dirs = useMemo(() => filteredFiles.filter((f) => f.isDir), [filteredFiles]);
   const files = useMemo(() => filteredFiles.filter((f) => !f.isDir), [filteredFiles]);
@@ -44,6 +63,7 @@ export function FileGroupList() {
                 file={f}
                 folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
                 onOpen={() => browseInto(f.path)}
+                onContextMenu={(e) => openMenu(e, f)}
               />
             ))}
           </TimelineSection>
@@ -70,11 +90,24 @@ export function FileGroupList() {
                 starred={isStarred(f.path)}
                 onSelect={() => selectOne(f.path)}
                 onToggleStar={() => toggleStar(f.path)}
+                onContextMenu={(e) => openMenu(e, f)}
               />
             ))}
           </TimelineSection>
         ))}
       </div>
+
+      {menu && (
+        <ContextMenu
+          state={menu}
+          starred={isStarred(menu.file.path)}
+          onClose={() => setMenu(null)}
+          onOpenFolder={() => browseInto(menu.file.path)}
+          onToggleStar={() => toggleStar(menu.file.path)}
+          onRename={() => setEditingPath(menu.file.path)}
+          onDelete={() => requestDelete([menu.file.path])}
+        />
+      )}
     </div>
   );
 }
@@ -153,12 +186,14 @@ function TimelineFileCard({
   starred,
   onSelect,
   onToggleStar,
+  onContextMenu,
 }: {
   file: FileEntry;
   folderLabel: string;
   starred: boolean;
   onSelect: () => void;
   onToggleStar: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const [hover, setHover] = useState(false);
   const recent = isRecent(file.modifiedAt);
@@ -166,6 +201,7 @@ function TimelineFileCard({
   return (
     <article
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -264,15 +300,18 @@ function FolderCard({
   file,
   folderLabel,
   onOpen,
+  onContextMenu,
 }: {
   file: FileEntry;
   folderLabel: string;
   onOpen: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const [hover, setHover] = useState(false);
   return (
     <article
       onClick={onOpen}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

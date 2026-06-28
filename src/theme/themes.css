@@ -305,6 +305,8 @@
   --sidebar-width: 220px;
   --details-width: 320px;
   --nav-item-height: 36px;
+  --gutter-window: 24px;
+  --gutter-sidebar: 16px;
 
   /* Motion */
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -410,6 +412,11 @@ input {
 }
 .blink {
   animation: lu-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lu-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes lu-skeleton {

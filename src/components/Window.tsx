@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-/** macOS-style window chrome: traffic lights + centered title. */
 export function Window({
   title,
   children,
@@ -12,7 +11,7 @@ export function Window({
     <div
       style={{
         height: '100%',
-        background: 'var(--color-bg)',
+        background: 'var(--bg-app)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -20,14 +19,14 @@ export function Window({
     >
       <div
         style={{
-          height: 32,
-          background: 'var(--color-log-bg)',
+          height: 'var(--titlebar-height)',
+          background: 'var(--bg-titlebar)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 12px',
           gap: 10,
           flexShrink: 0,
-          borderBottom: '1px solid var(--color-border)',
+          borderBottom: '1px solid var(--border-subtle)',
           // @ts-expect-error -- Electron draggable region
           WebkitAppRegion: 'drag',
         }}
@@ -41,8 +40,8 @@ export function Window({
           style={{
             flex: 1,
             textAlign: 'center',
-            fontSize: 12,
-            color: 'var(--color-muted)',
+            fontSize: 'var(--text-sm)',
+            color: 'var(--text-muted)',
             fontWeight: 500,
             display: 'flex',
             alignItems: 'center',
@@ -52,7 +51,7 @@ export function Window({
         >
           {title}
         </div>
-        <div style={{ width: 60 }} />
+        <div style={{ width: 48 }} />
       </div>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {children}
@@ -63,6 +62,6 @@ export function Window({
 
 function Dot({ color }: { color: string }) {
   return (
-    <div style={{ width: 12, height: 12, borderRadius: '50%', background: color }} />
+    <div style={{ width: 10, height: 10, borderRadius: '50%', background: color }} />
   );
 }

@@ -55,7 +55,6 @@ export function FileTable() {
     isScanning,
     folders,
     browseInto,
-    viewMode,
     editingPath,
     setEditingPath,
     renameFile,
@@ -101,35 +100,6 @@ export function FileTable() {
     },
     onRenameCancel: () => setEditingPath(null),
   });
-
-  if (viewMode === 'grid') {
-    return (
-      <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-bg)' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-            gap: 12,
-            padding: 16,
-          }}
-        >
-          {filteredFiles.map((f) => (
-            <GridCard
-              key={f.path}
-              file={f}
-              selected={selectedPaths.has(f.path) || selectedPath === f.path}
-              starred={!f.isDir && isStarred(f.path)}
-              onSelect={(e) => onRowClick(e, f)}
-              onOpen={() => (f.isDir ? browseInto(f.path) : selectOne(f.path))}
-              onToggleStar={() => toggleStar(f.path)}
-              onContextMenu={(e) => openMenu(e, f)}
-            />
-          ))}
-        </div>
-        {contextMenuEl}
-      </div>
-    );
-  }
 
   return (
     <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-bg)' }}>
@@ -632,111 +602,6 @@ function Row({
         {formatRelativeTime(file.modifiedAt)}
       </td>
     </tr>
-  );
-}
-
-// グリッド表示のカード
-function GridCard({
-  file,
-  selected,
-  starred,
-  onSelect,
-  onOpen,
-  onToggleStar,
-  onContextMenu,
-}: {
-  file: FileEntry;
-  selected: boolean;
-  starred: boolean;
-  onSelect: (e: React.MouseEvent) => void;
-  onOpen: () => void;
-  onToggleStar: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const meta = fileMeta(file.ext);
-  const recent = isRecent(file.modifiedAt);
-
-  return (
-    <div
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      onContextMenu={onContextMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 8,
-        padding: '16px 10px 12px',
-        background: selected ? 'rgba(var(--accent-rgb), 0.10)' : 'var(--color-surface)',
-        border: selected ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
-        borderRadius: 8,
-        cursor: 'pointer',
-        boxShadow: hovered ? 'var(--shadow-sm)' : 'none',
-        transition: 'box-shadow 0.12s, border-color 0.12s',
-      }}
-    >
-      {/* Star (files only) */}
-      {!file.isDir && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStar();
-          }}
-          aria-label={starred ? 'スターを外す' : 'スターを付ける'}
-          style={{
-            position: 'absolute',
-            top: 6,
-            right: 6,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            opacity: starred || hovered ? 1 : 0,
-            transition: 'opacity 0.12s',
-          }}
-        >
-          <Star
-            size={13}
-            color={starred ? 'var(--color-accent)' : 'var(--color-disabled)'}
-            fill={starred ? 'var(--color-accent)' : 'none'}
-          />
-        </button>
-      )}
-
-      {file.isDir ? (
-        <Folder size={40} color="var(--color-head-text)" />
-      ) : (
-        <meta.Icon size={40} color={meta.color} />
-      )}
-
-      <span
-        style={{
-          fontSize: 12,
-          color: file.isDir ? 'var(--color-head-text)' : 'var(--color-text)',
-          fontWeight: file.isDir ? 500 : 400,
-          textAlign: 'center',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          lineHeight: 1.3,
-          wordBreak: 'break-all',
-          width: '100%',
-        }}
-      >
-        {file.name}
-      </span>
-
-      <span style={{ fontSize: 10, color: recent ? 'var(--color-accent)' : 'var(--color-muted)' }}>
-        {file.isDir ? 'フォルダ' : formatBytes(file.sizeBytes)}
-      </span>
-    </div>
   );
 }
 

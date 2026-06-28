@@ -38,10 +38,11 @@ export type FileTypeFilter =
 
 export type SortKey = 'modified' | 'name' | 'size';
 export type SortDir = 'asc' | 'desc';
-export type ViewMode = 'list' | 'grid';
-export type Layout = 'A' | 'B' | 'C';
+export type ViewMode = 'list' | 'timeline' | 'calendar';
 
-// Quick filters (FilterBar). 'all' = no constraint.
+export type PeriodFilter = '1d' | '7d' | '14d' | '30d';
+
+// Quick filters. 'all' = no constraint.
 export type DateRange = 'all' | 'today' | 'week' | 'month';
 export type SizeFilter = 'all' | 'gt1mb' | 'gt10mb' | 'gt100mb';
 

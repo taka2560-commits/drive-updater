@@ -1,12 +1,6 @@
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronRight, Star } from 'lucide-react';
 import { useStore } from '../storeContext';
 
-/**
- * Shows the current folder path as clickable breadcrumb segments whenever
- * the user has drilled into a sub-folder (browsePath !== null).
- *
- * Example: デスクトップ > 作業中フォルダ > サブフォルダ
- */
 export function BreadcrumbBar() {
   const { browsePath, activeFolder, folders, setActiveFolder, browseInto } = useStore();
 
@@ -16,7 +10,6 @@ export function BreadcrumbBar() {
   const rootPath = folder?.path ?? '';
   const sep = browsePath.includes('\\') ? '\\' : '/';
 
-  // Build segments relative to the root folder.
   const relative = browsePath.startsWith(rootPath + sep)
     ? browsePath.slice(rootPath.length + sep.length)
     : browsePath;
@@ -28,38 +21,37 @@ export function BreadcrumbBar() {
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        padding: '6px 18px',
-        background: 'var(--color-surface-2)',
-        borderBottom: '1px solid var(--color-border)',
+        padding: '8px var(--gutter-window)',
+        borderBottom: '1px solid var(--border-subtle)',
         flexShrink: 0,
         flexWrap: 'wrap',
+        fontSize: 12,
       }}
     >
-      {/* Root: active folder label */}
-      <button
-        onClick={() => setActiveFolder(activeFolder)}
-        title={rootPath}
-        style={crumbBtn}
-      >
-        <Home size={11} style={{ flexShrink: 0 }} />
+      {/* Root segment */}
+      <button onClick={() => setActiveFolder(activeFolder)} title={rootPath} style={crumbBtn}>
+        <Star size={11} color="var(--accent)" style={{ flexShrink: 0 }} />
+        すべて
+      </button>
+
+      <ChevronRight size={11} color="var(--text-muted)" />
+
+      <button onClick={() => setActiveFolder(activeFolder)} title={rootPath} style={crumbBtn}>
         {folder?.label ?? activeFolder}
       </button>
 
-      {/* Each sub-folder segment */}
       {segments.map((seg, i) => {
         const segPath = rootPath + sep + segments.slice(0, i + 1).join(sep);
         const isLast = i === segments.length - 1;
         return (
           <span key={segPath} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <ChevronRight size={11} color="var(--color-disabled)" />
+            <ChevronRight size={11} color="var(--text-muted)" />
             {isLast ? (
-              <span style={crumbCurrent}>{seg}</span>
+              <span style={crumbCurrent}>
+                {seg}
+              </span>
             ) : (
-              <button
-                onClick={() => browseInto(segPath)}
-                title={segPath}
-                style={crumbBtn}
-              >
+              <button onClick={() => browseInto(segPath)} title={segPath} style={crumbBtn}>
                 {seg}
               </button>
             )}
@@ -77,16 +69,16 @@ const crumbBtn: React.CSSProperties = {
   background: 'none',
   border: 'none',
   padding: '2px 4px',
-  borderRadius: 4,
+  borderRadius: 'var(--radius-sm)',
   fontSize: 12,
-  color: 'var(--color-accent)',
+  color: 'var(--text-secondary)',
   cursor: 'pointer',
   fontFamily: 'var(--font-sans)',
 };
 
 const crumbCurrent: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--color-text)',
+  color: 'var(--text-primary)',
   fontWeight: 600,
   padding: '2px 4px',
 };

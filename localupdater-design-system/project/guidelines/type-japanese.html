@@ -1,0 +1,24 @@
+<!-- @dsCard group="Type" viewport="700x160" name="Japanese typography" subtitle="字間・行間の標準 — palt + 1.65 行送り" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 20px 26px; }
+  .body { font-size: 13px; line-height: var(--leading-normal); color: var(--text-primary); max-width: 620px; }
+  .meta { display: flex; gap: 18px; margin-top: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body data-theme="earth">
+  <p class="body">
+    過去 14 日間に更新されたファイルを一覧で確認できます。サブフォルダも含めて再スキャンすると、見落としていた変更も拾えます。<br />
+    数字や英字（PDF・CAD・35 件）が混ざる文章でも、欧文と和文のベースラインが揃って読みやすくなるよう設定されています。
+  </p>
+  <div class="meta">
+    <span>line-height 1.65</span>
+    <span>letter-spacing 0.01em</span>
+    <span>font-feature-settings: "palt"</span>
+  </div>
+</body>
+</html>

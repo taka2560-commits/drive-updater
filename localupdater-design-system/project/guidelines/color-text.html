@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Text colors" subtitle="primary / secondary / muted / faint" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 20px 24px; background: var(--surface); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; align-items: center; }
+  .line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .label{ font-size: 13px; }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body data-theme="earth">
+  <div class="grid">
+    <div class="line"><span class="label" style="color:var(--text-primary)">本文の見出し — Primary</span><span class="meta">#E6E9EF</span></div>
+    <div class="line"><span class="label" style="color:var(--text-secondary)">補助テキスト — Secondary</span><span class="meta">#9AA4B0</span></div>
+    <div class="line"><span class="label" style="color:var(--text-muted)">メタ情報 — Muted</span><span class="meta">#6B7585</span></div>
+    <div class="line"><span class="label" style="color:var(--text-faint)">無効化 — Faint</span><span class="meta">#4F5867</span></div>
+    <div class="line"><span class="label" style="color:var(--text-brand)">ブランド名 — Brand</span><span class="meta">#7BA9CE</span></div>
+    <div class="line"><span class="label" style="color:var(--text-accent)">アクセント — Accent</span><span class="meta">#E8A05A</span></div>
+  </div>
+</body>
+</html>

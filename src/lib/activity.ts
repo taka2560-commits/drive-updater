@@ -35,9 +35,9 @@ export function buildActivity(
 
 /** Bar fill color by activity level relative to the busiest day. */
 export function activityColor(count: number, max: number): string {
-  if (count === 0) return 'var(--color-border)';
+  if (count === 0) return 'var(--border)';
   const ratio = max === 0 ? 0 : count / max;
-  if (ratio >= 0.75) return 'var(--color-accent)';
+  if (ratio >= 0.75) return 'var(--accent)';
   if (ratio >= 0.4) return 'rgba(var(--accent-rgb), 0.55)';
   return 'rgba(var(--accent-rgb), 0.30)';
 }

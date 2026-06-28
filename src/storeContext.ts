@@ -5,7 +5,7 @@ import type {
   FileTypeFilter,
   FolderDef,
   FolderKey,
-  Layout,
+  PeriodFilter,
   Screen,
   SettingsTab,
   SizeFilter,
@@ -15,7 +15,6 @@ import type {
 } from './types';
 import type { ThemeName } from './theme/tokens';
 
-// Shape of the global app store (provided by StoreProvider in store.tsx).
 export interface Store {
   theme: ThemeName;
   setTheme: (t: ThemeName) => void;
@@ -25,9 +24,8 @@ export interface Store {
   settingsTab: SettingsTab;
   setSettingsTab: (t: SettingsTab) => void;
 
-  // Layout switch (A: classic / B: timeline / C: calendar)
-  layout: Layout;
-  setLayout: (l: Layout) => void;
+  viewMode: ViewMode;
+  setViewMode: (v: ViewMode) => void;
 
   // Folder list (dynamic — real paths in Electron, sample paths in browser)
   folders: FolderDef[];
@@ -43,8 +41,8 @@ export interface Store {
   browseUp: () => void;
 
   allFiles: FileEntry[];
-  folderFiles: FileEntry[]; // entries at current browsePath (post exclude)
-  filteredFiles: FileEntry[]; // folderFiles ∩ search ∩ typeFilter, sorted
+  folderFiles: FileEntry[];
+  filteredFiles: FileEntry[];
 
   searchQuery: string;
   setSearchQuery: (q: string) => void;
@@ -54,14 +52,16 @@ export interface Store {
   // Scan options
   recursive: boolean;
   setRecursive: (v: boolean) => void;
-  viewMode: ViewMode;
-  setViewMode: (v: ViewMode) => void;
+
+  // Period filter (sidebar: how far back to show files)
+  periodFilter: PeriodFilter;
+  setPeriodFilter: (p: PeriodFilter) => void;
 
   // Date filter (heatmap cell / activity bar click). null = no date filter.
   filterByDate: string | null;
   setFilterByDate: (d: string | null) => void;
 
-  // Quick filters (FilterBar chips)
+  // Quick filters
   dateRange: DateRange;
   setDateRange: (r: DateRange) => void;
   sizeFilter: SizeFilter;
@@ -75,7 +75,7 @@ export interface Store {
   setSelected: (p: string | null) => void;
   selectedFile: FileEntry | null;
 
-  // Multi-selection (⌘/Shift click) + bulk actions
+  // Multi-selection
   selectedPaths: Set<string>;
   selectOne: (path: string | null) => void;
   toggleInSelection: (path: string) => void;
@@ -87,14 +87,12 @@ export interface Store {
   toggleStar: (path: string) => void;
   starMany: (paths: string[], on: boolean) => void;
 
-  // Delete (trash) — requestDelete opens a central confirm dialog
+  // Delete (trash)
   pendingDelete: string[] | null;
   requestDelete: (paths: string[]) => void;
   cancelDelete: () => void;
   confirmDelete: () => void;
-  // Rename a file/folder (updates real FS in Electron, optimistic in browser)
   renameFile: (path: string, newName: string) => void;
-  // Path being renamed inline (FileTable shows an input for it)
   editingPath: string | null;
   setEditingPath: (p: string | null) => void;
 

@@ -1,11 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
-/* =============================================================================
-   SiteSorter design-system primitives, reproduced in the app's stack.
-   Faithful to _ds_bundle.js (Button / Badge / NavItem), with lucide icons.
-   ============================================================================= */
-
 // ---- Badge ------------------------------------------------------------------
 type BadgeVariant =
   | 'accent'
@@ -17,16 +12,16 @@ type BadgeVariant =
   | 'outline';
 
 const BADGE_VARIANTS: Record<BadgeVariant, CSSProperties> = {
-  accent: { background: 'var(--color-accent)', color: 'var(--color-bg)' },
-  primary: { background: 'var(--color-primary)', color: 'var(--color-text)' },
-  muted: { background: 'var(--color-border)', color: 'var(--color-muted)' },
-  success: { background: 'var(--color-success)', color: 'var(--color-success-text)' },
-  danger: { background: 'var(--color-danger)', color: 'var(--color-danger-text)' },
-  warn: { background: 'var(--color-warn)', color: 'var(--color-warn-text)' },
+  accent: { background: 'var(--accent)', color: 'var(--bg-app)' },
+  primary: { background: 'var(--brand)', color: 'var(--text-primary)' },
+  muted: { background: 'var(--border)', color: 'var(--text-secondary)' },
+  success: { background: 'var(--success-bg)', color: 'var(--success-text)' },
+  danger: { background: 'var(--danger-bg)', color: 'var(--danger-text)' },
+  warn: { background: 'var(--warn-bg)', color: 'var(--warn-text)' },
   outline: {
     background: 'transparent',
-    border: '1px solid var(--color-border)',
-    color: 'var(--color-muted)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-secondary)',
   },
 };
 
@@ -98,21 +93,21 @@ export function Button({
   const variantStyle: CSSProperties =
     variant === 'primary'
       ? {
-          background: hov ? 'var(--color-primary-hi)' : 'var(--color-primary)',
+          background: hov ? 'var(--accent-hover)' : 'var(--brand)',
           border: 'none',
-          color: 'var(--color-text)',
+          color: 'var(--text-primary)',
           fontWeight: 'var(--font-weight-bold)',
         }
       : variant === 'secondary'
         ? {
-            background: hov ? 'var(--color-secondary)' : 'transparent',
-            border: '1px solid var(--color-secondary)',
-            color: hov ? 'var(--color-text)' : 'var(--color-sec-text)',
+            background: hov ? 'var(--brand)' : 'transparent',
+            border: '1px solid var(--brand)',
+            color: hov ? 'var(--text-primary)' : 'var(--text-brand)',
           }
         : {
-            background: hov ? 'rgba(127,127,127,0.10)' : 'transparent',
-            border: '1px solid var(--color-border)',
-            color: hov ? 'var(--color-text)' : 'var(--color-muted)',
+            background: hov ? 'var(--surface-hover)' : 'transparent',
+            border: '1px solid var(--border)',
+            color: hov ? 'var(--text-primary)' : 'var(--text-secondary)',
           };
 
   return (
@@ -131,7 +126,7 @@ export function Button({
         fontFamily: 'var(--font-sans)',
         borderRadius: 'var(--radius-md)',
         cursor: disabled ? 'default' : 'pointer',
-        transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+        transition: 'background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast)',
         opacity: disabled ? 0.45 : 1,
         outline: 'none',
         whiteSpace: 'nowrap',
@@ -178,19 +173,19 @@ export function NavItem({
         fontFamily: 'var(--font-sans)',
         fontSize: 'var(--text-md)',
         color: active
-          ? 'var(--color-text)'
+          ? 'var(--text-primary)'
           : hovered
-            ? 'var(--color-head-text)'
-            : 'var(--color-muted)',
+            ? 'var(--text-brand)'
+            : 'var(--text-secondary)',
         background: active
-          ? 'var(--color-bg)'
+          ? 'var(--bg-app)'
           : hovered
-            ? 'rgba(127,127,127,0.06)'
+            ? 'var(--surface-hover)'
             : 'transparent',
         borderLeft: active
-          ? '3px solid var(--color-accent)'
+          ? '3px solid var(--accent)'
           : '3px solid transparent',
-        transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+        transition: 'background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast)',
         userSelect: 'none',
         outline: 'none',
         boxSizing: 'border-box',
@@ -201,7 +196,7 @@ export function NavItem({
           size={15}
           style={{
             flexShrink: 0,
-            color: active ? 'var(--color-accent)' : 'inherit',
+            color: active ? 'var(--accent)' : 'inherit',
           }}
         />
       )}

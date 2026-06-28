@@ -2,11 +2,6 @@ import { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useStore } from '../storeContext';
 
-/**
- * Central confirmation dialog for destructive actions.
- * Currently driven by store.pendingDelete (file/folder trash).
- * Rendered once at the app root so every layout shares it.
- */
 export function ConfirmDialog() {
   const { pendingDelete, cancelDelete, confirmDelete } = useStore();
   const open = pendingDelete !== null;
@@ -39,7 +34,7 @@ export function ConfirmDialog() {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'var(--surface-overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -52,9 +47,9 @@ export function ConfirmDialog() {
         style={{
           width: 420,
           maxWidth: '90vw',
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 12,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-xl)',
           boxShadow: 'var(--shadow-lg)',
           padding: 24,
         }}
@@ -72,22 +67,22 @@ export function ConfirmDialog() {
               flexShrink: 0,
             }}
           >
-            <AlertTriangle size={20} color="#F5A0A0" />
+            <AlertTriangle size={20} color="var(--danger)" />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             ゴミ箱に移動しますか？
           </div>
         </div>
 
-        <div style={{ fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.6, marginBottom: 20 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
           {name ? (
             <>
-              <span style={{ color: 'var(--color-text)', fontWeight: 600, wordBreak: 'break-all' }}>{name}</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600, wordBreak: 'break-all' }}>{name}</span>
               {' をゴミ箱に移動します。'}
             </>
           ) : (
             <>
-              選択中の <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{count}件</span>{' '}
+              選択中の <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{count}件</span>{' '}
               をゴミ箱に移動します。
             </>
           )}
@@ -110,23 +105,23 @@ export function ConfirmDialog() {
 
 const btnBase: React.CSSProperties = {
   padding: '8px 16px',
-  borderRadius: 7,
+  borderRadius: 'var(--radius-md)',
   fontSize: 13,
   fontWeight: 600,
   cursor: 'pointer',
   fontFamily: 'var(--font-sans)',
-  border: '1px solid var(--color-border)',
+  border: '1px solid var(--border)',
 };
 
 const btnSecondary: React.CSSProperties = {
   ...btnBase,
-  background: 'var(--color-surface-2)',
-  color: 'var(--color-text)',
+  background: 'var(--surface-elevated)',
+  color: 'var(--text-primary)',
 };
 
 const btnDanger: React.CSSProperties = {
   ...btnBase,
-  background: '#D46A6A',
-  borderColor: '#D46A6A',
+  background: 'var(--danger)',
+  borderColor: 'var(--danger)',
   color: '#fff',
 };

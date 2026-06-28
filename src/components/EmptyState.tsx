@@ -45,15 +45,15 @@ export function EmptyState({ variant, query, onPrimary, onSecondary }: EmptyStat
         gap: 14,
         padding: 40,
         textAlign: 'center',
-        background: 'var(--color-bg)',
+        background: 'var(--bg-app)',
       }}
     >
-      <config.Icon size={44} color="var(--color-disabled)" />
-      <div style={{ fontSize: 14, color: 'var(--color-text)', fontWeight: 500, maxWidth: 320, lineHeight: 1.6 }}>
+      <config.Icon size={44} color="var(--text-muted)" />
+      <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500, maxWidth: 320, lineHeight: 1.6 }}>
         {config.title}
       </div>
       {config.sub && (
-        <div style={{ fontSize: 12, color: 'var(--color-muted)', maxWidth: 320, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 320, lineHeight: 1.6 }}>
           {config.sub}
         </div>
       )}

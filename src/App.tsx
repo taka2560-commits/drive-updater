@@ -1,18 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { StoreProvider } from './store';
 import { useStore } from './storeContext';
-import { MainScreen } from './screens/MainScreen';
-import { MainScreenB } from './screens/MainScreenB';
-import { MainScreenC } from './screens/MainScreenC';
-import { StarredScreen } from './screens/StarredScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
+import { Window } from './components/Window';
+import { Sidebar } from './components/Sidebar';
+import { Toolbar } from './components/Toolbar';
+import { FilterBar } from './components/FilterBar';
+import { BreadcrumbBar } from './components/BreadcrumbBar';
+import { StatusBar } from './components/StatusBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
+
+import { FileTable } from './components/FileTable';
+import { FileGroupList } from './components/FileGroupList';
+import { CalendarView } from './components/CalendarView';
+import { BulkActionBar } from './components/BulkActionBar';
+import { DetailPane } from './components/DetailPane';
+import { EmptyState } from './components/EmptyState';
+import { StarredContent } from './screens/StarredScreen';
+import { SettingsContent } from './screens/SettingsScreen';
 
 function Shell() {
   const store = useStore();
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Global keyboard shortcuts (spec §4.2).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
@@ -20,7 +29,6 @@ function Shell() {
         target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       const mod = e.metaKey || e.ctrlKey;
 
-      // Escape works everywhere (incl. while typing): clear → deselect → close.
       if (e.key === 'Escape') {
         if (store.searchQuery) store.setSearchQuery('');
         else if (store.selectedPath) store.setSelected(null);
@@ -60,7 +68,6 @@ function Shell() {
         return;
       }
 
-      // Delete/Backspace → move selected file(s) to trash (confirm dialog).
       if ((e.key === 'Delete' || e.key === 'Backspace') && store.screen === 'main') {
         const targets =
           store.selectedPaths.size > 0 ? [...store.selectedPaths]
@@ -73,18 +80,14 @@ function Shell() {
         return;
       }
 
-      // F2 → rename the selected file inline (A layout has the table input).
-      if (e.key === 'F2' && store.selectedPath && store.layout === 'A') {
+      if (e.key === 'F2' && store.selectedPath && store.viewMode === 'list') {
         e.preventDefault();
         store.setEditingPath(store.selectedPath);
         return;
       }
 
-      // Arrow/Space navigation is A-layout only; B (accordion) and C (modal)
-      // handle these keys inside their own components.
-      if (store.layout !== 'A') return;
+      if (store.viewMode !== 'list') return;
 
-      // Arrow navigation only on the main file list.
       if (store.screen === 'main' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         const list = store.filteredFiles;
@@ -107,17 +110,63 @@ function Shell() {
     return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
-  const screen =
-    store.screen === 'starred' ? <StarredScreen />
-      : store.screen === 'settings' ? <SettingsScreen />
-        : store.layout === 'B' ? <MainScreenB searchRef={searchRef} />
-          : store.layout === 'C' ? <MainScreenC searchRef={searchRef} />
-            : <MainScreen searchRef={searchRef} />;
+  return (
+    <>
+      <Window title="LocalUpdater">
+        <Sidebar />
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-app)' }}>
+          <Toolbar searchRef={searchRef} />
+          {store.screen === 'main' && <MainContent />}
+          {store.screen === 'starred' && <StarredContent />}
+          {store.screen === 'settings' && <SettingsContent />}
+          <StatusBar />
+        </main>
+      </Window>
+      <ConfirmDialog />
+    </>
+  );
+}
+
+function MainContent() {
+  const {
+    viewMode,
+    folderFiles,
+    filteredFiles,
+    searchQuery,
+    setSearchQuery,
+    setTypeFilter,
+    rescan,
+  } = useStore();
+
+  const isEmpty = filteredFiles.length === 0;
 
   return (
     <>
-      {screen}
-      <ConfirmDialog />
+      <FilterBar />
+      <BreadcrumbBar />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+          {isEmpty ? (
+            <EmptyState
+              variant={folderFiles.length === 0 ? 'folder' : 'search'}
+              query={searchQuery}
+              onPrimary={folderFiles.length === 0 ? rescan : () => setSearchQuery('')}
+              onSecondary={() => {
+                setSearchQuery('');
+                setTypeFilter('all');
+              }}
+            />
+          ) : viewMode === 'list' ? (
+            <FileTable />
+          ) : viewMode === 'timeline' ? (
+            <FileGroupList />
+          ) : (
+            <CalendarView />
+          )}
+          {viewMode !== 'calendar' && <BulkActionBar />}
+        </div>
+        {viewMode === 'list' && <DetailPane />}
+      </div>
     </>
   );
 }

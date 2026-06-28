@@ -5,7 +5,7 @@ import type {
   FileTypeFilter,
   FolderDef,
   FolderKey,
-  Layout,
+  PeriodFilter,
   Screen,
   SettingsTab,
   SizeFilter,
@@ -16,7 +16,7 @@ import type {
 import { applyTheme, loadSavedTheme, type ThemeName } from './theme/tokens';
 import { matchesType } from './lib/fileType';
 import { toDateKey } from './lib/format';
-import { dateRangeStart } from './lib/grouping';
+import { dateRangeStart, periodFilterStart } from './lib/grouping';
 import {
   buildSampleFiles,
   DEFAULT_STARRED,
@@ -25,7 +25,6 @@ import {
 } from './data/sampleData';
 import { StoreContext, type Store } from './storeContext';
 
-// window.localUpdater type
 interface LocalUpdaterAPI {
   openPath: (p: string) => Promise<void>;
   showInFolder: (p: string) => Promise<void>;
@@ -48,7 +47,6 @@ function getAPI(): LocalUpdaterAPI | null {
   return (window as unknown as { localUpdater?: LocalUpdaterAPI }).localUpdater ?? null;
 }
 
-// localStorage helpers
 function loadJSON<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -73,10 +71,21 @@ const K = {
   customFolders: 'localUpdater.customFolders',
   recursive: 'localUpdater.recursive',
   viewMode: 'localUpdater.viewMode',
-  layout: 'localUpdater.layout',
+  periodFilter: 'localUpdater.periodFilter',
 } as const;
 
-/** Merge two file lists, de-duplicating by path (later wins). */
+function migrateViewMode(): ViewMode {
+  // Migrate from old layout A/B/C → new viewMode list/timeline/calendar
+  const oldLayout = loadJSON<string>('localUpdater.layout', '');
+  if (oldLayout === 'B') return 'timeline';
+  if (oldLayout === 'C') return 'calendar';
+  if (oldLayout === 'A') return 'list';
+  // Check for new key
+  const saved = loadJSON<string>(K.viewMode, '');
+  if (saved === 'timeline' || saved === 'calendar') return saved;
+  return 'list';
+}
+
 function mergeByPath(base: FileEntry[], extra: FileEntry[]): FileEntry[] {
   const map = new Map<string, FileEntry>();
   for (const f of base) map.set(f.path, f);
@@ -88,7 +97,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(loadSavedTheme);
   const [screen, setScreen] = useState<Screen>('main');
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
-  const [layout, setLayoutState] = useState<Layout>(() => loadJSON<Layout>(K.layout, 'A'));
+  const [viewMode, setViewModeState] = useState<ViewMode>(migrateViewMode);
   const [activeFolder, setActiveFolderState] = useState<FolderKey>('desktop');
 
   const [folders, setFolders] = useState<FolderDef[]>(() => [
@@ -98,7 +107,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ),
   ]);
 
-  // Sub-folder navigation (null = root of active folder)
   const [browsePath, setBrowsePath] = useState<string | null>(null);
 
   const [allFiles, setAllFiles] = useState<FileEntry[]>(() => buildSampleFiles());
@@ -109,11 +117,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [filterByDate, setFilterByDate] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>('all');
   const [sizeFilter, setSizeFilter] = useState<SizeFilter>('all');
+  const [periodFilter, setPeriodFilterState] = useState<PeriodFilter>(() =>
+    loadJSON<PeriodFilter>(K.periodFilter, '14d'),
+  );
   const [recursive, setRecursiveState] = useState<boolean>(() =>
     loadJSON<boolean>(K.recursive, false),
-  );
-  const [viewMode, setViewModeState] = useState<ViewMode>(() =>
-    loadJSON<ViewMode>(K.viewMode, 'list'),
   );
 
   const [sortKey, setSortKey] = useState<SortKey>(() =>
@@ -124,13 +132,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const [selectedPath, setSelected] = useState<string | null>(null);
-  // Multi-selection (⌘/Shift click). selectedPath stays = last-clicked / detail target.
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const selectionAnchorRef = useRef<string | null>(null);
 
-  // Paths queued for deletion — drives the central confirm dialog (null = closed).
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
-  // Path currently being renamed inline (null = none).
   const [editingPath, setEditingPath] = useState<string | null>(null);
 
   const [starred, setStarred] = useState<Set<string>>(
@@ -146,28 +151,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const setTheme = (t: ThemeName) => setThemeState(t);
 
-  const setLayout = (l: Layout) => {
-    setLayoutState(l);
-    saveJSON(K.layout, l);
+  const setViewMode = (v: ViewMode) => {
+    setViewModeState(v);
+    saveJSON(K.viewMode, v);
   };
 
-  // Refs to keep latest values in scan/watch closures (synced in effects).
+  const setPeriodFilter = (p: PeriodFilter) => {
+    setPeriodFilterState(p);
+    saveJSON(K.periodFilter, p);
+  };
+
   const excludeRef = useRef(excludeKeywords);
   const foldersRef = useRef(folders);
   const recursiveRef = useRef(recursive);
   const activeFolderRef = useRef(activeFolder);
-  // Folders the user has drilled into — re-scanned on every rescan so the
-  // hierarchy stays populated (and watch refreshes keep them current).
   const expandedRef = useRef<Set<string>>(new Set());
   useEffect(() => { excludeRef.current = excludeKeywords; }, [excludeKeywords]);
   useEffect(() => { foldersRef.current = folders; }, [folders]);
   useEffect(() => { recursiveRef.current = recursive; }, [recursive]);
   useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
 
-  // Resolve which root folder a (sub)path belongs to. Uses a separator-aware
-  // boundary check (not a bare startsWith) and picks the longest match, so a
-  // custom folder nested inside Desktop is attributed to the custom folder —
-  // not mistakenly to Desktop just because its path is a prefix.
   const folderKeyForPath = (p: string): FolderKey => {
     const sep = p.includes('\\') ? '\\' : '/';
     const match = foldersRef.current
@@ -176,7 +179,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return match?.key ?? activeFolderRef.current;
   };
 
-  // Unified scan: roots (+ expanded sub-folders), then merge.
   const doScan = useCallback(() => {
     const api = getAPI();
     if (!api) {
@@ -196,7 +198,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .scanFolders(rootList, rec, exclude)
       .then(async (rootFiles) => {
         let result = rootFiles;
-        // Lazily-loaded sub-folders (only needed in non-recursive mode).
         if (!rec && expandedRef.current.size > 0) {
           const subList = [...expandedRef.current].map((p) => ({
             key: folderKeyForPath(p),
@@ -227,7 +228,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSizeFilter('all');
   };
 
-  // Drill into a sub-folder: remember it, lazy-scan its contents, then show it.
   const browseInto = useCallback(
     (path: string) => {
       setBrowsePath(path);
@@ -260,7 +260,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const root = foldersRef.current.find((f) => f.key === activeFolderRef.current)?.path ?? '';
       const sep = prev.includes('\\') ? '\\' : '/';
       const parent = prev.slice(0, prev.lastIndexOf(sep));
-      // If parent is the root folder (or above), go to root (null = top of active folder).
       return parent && parent !== root ? parent : null;
     });
     setSelected(null);
@@ -271,11 +270,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     recursiveRef.current = v;
     saveJSON(K.recursive, v);
     doScan();
-  };
-
-  const setViewMode = (v: ViewMode) => {
-    setViewModeState(v);
-    saveJSON(K.viewMode, v);
   };
 
   const toggleSort = (k: SortKey) => {
@@ -292,7 +286,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const isStarred = (path: string) => starred.has(path);
-  // Bulk star/unstar (folders are ignored — only real files can be starred).
   const starMany = useCallback((paths: string[], on: boolean) => {
     setStarred((prev) => {
       const next = new Set(prev);
@@ -314,15 +307,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // ── Multi-selection ───────────────────────────────────────────────
-  // Single click: select one (and set as detail target + anchor).
   const selectOne = useCallback((path: string | null) => {
     setSelected(path);
     setSelectedPaths(path ? new Set([path]) : new Set());
     selectionAnchorRef.current = path;
   }, []);
 
-  // ⌘/Ctrl click: toggle a path in/out of the selection.
   const toggleInSelection = useCallback((path: string) => {
     setSelectedPaths((prev) => {
       const next = new Set(prev);
@@ -334,7 +324,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     selectionAnchorRef.current = path;
   }, []);
 
-  // Shift click: select the contiguous range from the anchor to path.
   const selectRange = useCallback((path: string, ordered: string[]) => {
     const anchor = selectionAnchorRef.current ?? path;
     const a = ordered.indexOf(anchor);
@@ -355,8 +344,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     selectionAnchorRef.current = null;
   }, []);
 
-  // ── Delete (trash) ────────────────────────────────────────────────
-  // requestDelete opens the confirm dialog; confirmDelete performs the move.
   const requestDelete = useCallback((paths: string[]) => {
     if (paths.length > 0) setPendingDelete(paths);
   }, []);
@@ -393,7 +380,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [pendingDelete]);
 
-  // ── Rename ────────────────────────────────────────────────────────
   const renameFile = useCallback(async (path: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === path.split(/[\\/]/).pop()) return;
@@ -401,7 +387,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const sep = path.includes('\\') ? '\\' : '/';
     const nextPath = api
       ? await api.renameItem(path, trimmed)
-      : path.slice(0, path.lastIndexOf(sep) + 1) + trimmed; // browser: optimistic
+      : path.slice(0, path.lastIndexOf(sep) + 1) + trimmed;
     if (!nextPath) return;
     const ext = trimmed.includes('.') ? trimmed.slice(trimmed.lastIndexOf('.') + 1).toLowerCase() : '';
     setAllFiles((prev) =>
@@ -450,7 +436,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // On mount: fetch real OS paths, do initial scan, start watching.
   useEffect(() => {
     const api = getAPI();
     if (!api) return;
@@ -474,7 +459,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       doScan();
 
-      // Watch all root folders for changes → debounced rescan (handled in main).
       const watchPaths = foldersRef.current.map((f) => f.path);
       api.startWatch(watchPaths, recursiveRef.current);
     });
@@ -483,18 +467,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, [doScan]);
 
-  // Re-arm the watcher when the folder set changes.
   useEffect(() => {
     const api = getAPI();
     if (!api) return;
     api.startWatch(folders.map((f) => f.path), recursive);
   }, [folders, recursive]);
 
-  // Derived: entries at current browsePath or active folder root.
   const folderFiles = useMemo(() => {
-    // Match keywords against whole path segments (file/folder names), not raw
-    // substrings — so "dist" excludes a folder named dist, never the file
-    // "distribution.pdf", and an ancestor segment never mass-hides its contents.
     const kwSet = new Set(excludeKeywords.map((k) => k.toLowerCase()));
     const notExcluded = (f: FileEntry) =>
       !f.path
@@ -508,20 +487,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return allFiles.filter((f) => {
         if (!f.path.startsWith(prefix)) return false;
         if (!notExcluded(f)) return false;
-        if (recursive) return !f.isDir; // flatten: files only
+        if (recursive) return !f.isDir;
         const relative = f.path.slice(prefix.length);
-        return !relative.includes('\\') && !relative.includes('/'); // direct children
+        return !relative.includes('\\') && !relative.includes('/');
       });
     }
 
-    // Root of the active folder.
     if (recursive) {
       return allFiles.filter((f) => f.folder === activeFolder && !f.isDir && notExcluded(f));
     }
     return allFiles.filter((f) => {
       if (f.folder !== activeFolder || !notExcluded(f)) return false;
-      // In non-recursive scans every entry is already a direct child, but guard
-      // against recursive leftovers in allFiles after toggling the option.
       const root = folders.find((fd) => fd.key === activeFolder)?.path;
       if (!root) return true;
       const sep = root.includes('\\') ? '\\' : '/';
@@ -557,6 +533,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const filteredFiles = useMemo(() => {
     const rangeStart = dateRangeStart(dateRange);
+    const periodStart = periodFilterStart(periodFilter);
     const sizeMin =
       sizeFilter === 'gt1mb' ? 1_048_576
         : sizeFilter === 'gt10mb' ? 10_485_760
@@ -565,8 +542,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const out = searchMatched.filter((f) => {
       if (!(f.isDir || matchesType(f.ext, typeFilter))) return false;
       if (filterByDate && toDateKey(f.modifiedAt) !== filterByDate) return false;
-      // Quick filters apply to files only; folders always pass through.
       if (!f.isDir) {
+        if (f.modifiedAt < periodStart) return false;
         if (rangeStart && f.modifiedAt < rangeStart) return false;
         if (sizeMin && f.sizeBytes < sizeMin) return false;
       }
@@ -574,7 +551,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     const dir = sortDir === 'asc' ? 1 : -1;
     out.sort((a, b) => {
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1; // dirs first
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
       const cmp =
         sortKey === 'name'
           ? a.name.localeCompare(b.name, 'ja')
@@ -584,7 +561,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return cmp * dir;
     });
     return out;
-  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate, dateRange, sizeFilter]);
+  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate, dateRange, sizeFilter, periodFilter]);
 
   const selectedFile = useMemo(
     () => allFiles.find((f) => f.path === selectedPath) ?? null,
@@ -598,8 +575,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScreen,
     settingsTab,
     setSettingsTab,
-    layout,
-    setLayout,
+    viewMode,
+    setViewMode,
     folders,
     addCustomFolder,
     removeCustomFolder,
@@ -617,8 +594,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTypeFilter,
     recursive,
     setRecursive,
-    viewMode,
-    setViewMode,
+    periodFilter,
+    setPeriodFilter,
     filterByDate,
     setFilterByDate,
     dateRange,

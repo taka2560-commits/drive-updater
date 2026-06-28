@@ -1,0 +1,179 @@
+/* ============================================================
+   COLORS
+   Three themes — Earth (default), Night, Light.
+   Earth is loaded on :root; the others override under a class.
+   ============================================================ */
+
+:root,
+[data-theme="earth"] {
+  /* === Earth (default) — steel blue + warm amber ============== */
+
+  /* Raw palette */
+  --steel-950: #131820;
+  --steel-900: #161C24;
+  --steel-850: #181F27;
+  --steel-800: #1B232C;
+  --steel-750: #1F2832;
+  --steel-700: #232D38;
+  --steel-650: #2A3543;
+  --steel-600: #303B4A;
+  --steel-500: #3A4658;
+  --steel-400: #515E72;
+  --steel-300: #6B7888;
+
+  --amber-600: #C57F3D;
+  --amber-500: #E8A05A;   /* primary accent */
+  --amber-400: #ECB078;
+  --amber-300: #F1C394;
+
+  --sky-500: #7BA9CE;     /* brand mark / info */
+  --sky-400: #92BAD9;
+
+  --mint-500: #6FB68C;
+  --rose-500: #D87060;
+  --gold-500: #E8B45A;
+
+  /* Surfaces */
+  --bg-titlebar: var(--steel-900);
+  --bg-app:      var(--steel-800);
+  --bg-sidebar:  var(--steel-850);
+  --bg-statusbar:var(--steel-900);
+
+  --surface:           var(--steel-700);
+  --surface-elevated:  var(--steel-650);
+  --surface-hover:     var(--steel-600);
+  --surface-selected:  rgba(232, 160, 90, 0.10);
+  --surface-overlay:   rgba(0, 0, 0, 0.55);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border:        rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-accent: var(--amber-500);
+
+  /* Text */
+  --text-primary:   #E6E9EF;
+  --text-secondary: #9AA4B0;
+  --text-muted:     #6B7585;
+  --text-faint:     #4F5867;
+  --text-on-accent: #1B232C;
+  --text-brand:     var(--sky-500);
+  --text-accent:    var(--amber-500);
+  --text-link:      var(--sky-400);
+
+  /* Semantic */
+  --accent:         var(--amber-500);
+  --accent-hover:   var(--amber-400);
+  --accent-soft:    rgba(232, 160, 90, 0.16);
+  --accent-soft-2:  rgba(232, 160, 90, 0.28);
+  --brand:          var(--sky-500);
+
+  --success: var(--mint-500);
+  --warning: var(--gold-500);
+  --danger:  var(--rose-500);
+  --info:    var(--sky-500);
+
+  /* Heatmap scale (calendar view) — low → high activity */
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(232, 160, 90, 0.18);
+  --heat-2: rgba(232, 160, 90, 0.38);
+  --heat-3: rgba(232, 160, 90, 0.62);
+  --heat-4: var(--amber-500);
+
+  /* Focus ring */
+  --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--amber-500);
+}
+
+/* === Night — deep navy + bright blue + yellow ================= */
+[data-theme="night"] {
+  --bg-titlebar:  #0A1126;
+  --bg-app:       #0E1530;
+  --bg-sidebar:   #0B1228;
+  --bg-statusbar: #0A1126;
+
+  --surface:          #131C3D;
+  --surface-elevated: #1A2553;
+  --surface-hover:    #1F2C62;
+  --surface-selected: rgba(82, 134, 255, 0.14);
+  --surface-overlay:  rgba(0, 0, 0, 0.6);
+
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border:        rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-accent: #5286FF;
+
+  --text-primary:   #ECEFFB;
+  --text-secondary: #9AA6C9;
+  --text-muted:     #6A769B;
+  --text-faint:     #4A5478;
+  --text-on-accent: #0A1126;
+  --text-brand:     #5286FF;
+  --text-accent:    #FFD23F;
+  --text-link:      #82A6FF;
+
+  --accent:         #FFD23F;          /* bright yellow primary accent */
+  --accent-hover:   #FFDB6A;
+  --accent-soft:    rgba(255, 210, 63, 0.16);
+  --accent-soft-2:  rgba(255, 210, 63, 0.28);
+  --brand:          #5286FF;          /* bright blue */
+
+  --success: #4ED2A2;
+  --warning: #FFD23F;
+  --danger:  #FF6E70;
+  --info:    #5286FF;
+
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(82, 134, 255, 0.22);
+  --heat-2: rgba(82, 134, 255, 0.45);
+  --heat-3: rgba(82, 134, 255, 0.70);
+  --heat-4: #5286FF;
+
+  --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px #FFD23F;
+}
+
+/* === Light — mint + coral + white ============================= */
+[data-theme="light"] {
+  --bg-titlebar:  #F4F6F8;
+  --bg-app:       #FAFBFC;
+  --bg-sidebar:   #F1F3F6;
+  --bg-statusbar: #F4F6F8;
+
+  --surface:          #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-hover:    #F1F4F8;
+  --surface-selected: rgba(255, 122, 105, 0.10);
+  --surface-overlay:  rgba(20, 30, 40, 0.35);
+
+  --border-subtle: rgba(20, 30, 40, 0.06);
+  --border:        rgba(20, 30, 40, 0.12);
+  --border-strong: rgba(20, 30, 40, 0.20);
+  --border-accent: #FF7A69;
+
+  --text-primary:   #1B232C;
+  --text-secondary: #5A6573;
+  --text-muted:     #8A95A2;
+  --text-faint:     #B2BCC8;
+  --text-on-accent: #FFFFFF;
+  --text-brand:     #2EAE92;
+  --text-accent:    #FF7A69;
+  --text-link:      #2EAE92;
+
+  --accent:         #FF7A69;          /* coral primary accent */
+  --accent-hover:   #FF8E7E;
+  --accent-soft:    rgba(255, 122, 105, 0.14);
+  --accent-soft-2:  rgba(255, 122, 105, 0.26);
+  --brand:          #2EAE92;          /* mint */
+
+  --success: #2EAE92;
+  --warning: #E8A93F;
+  --danger:  #E03E3E;
+  --info:    #4FA3D1;
+
+  --heat-0: rgba(20, 30, 40, 0.04);
+  --heat-1: rgba(46, 174, 146, 0.20);
+  --heat-2: rgba(46, 174, 146, 0.42);
+  --heat-3: rgba(46, 174, 146, 0.65);
+  --heat-4: #2EAE92;
+
+  --ring: 0 0 0 2px var(--bg-app), 0 0 0 4px #FF7A69;
+}

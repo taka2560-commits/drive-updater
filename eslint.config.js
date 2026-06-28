@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Ignore build output and the Claude Design handoff bundle (reference only,
+  // not application source — see HANDOFF_README.md).
+  globalIgnores(['dist', 'dist-electron', 'release', 'localupdater-design-system']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

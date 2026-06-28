@@ -1,0 +1,71 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Display" subtitle="Card / Badge / FileTypeBadge / EmptyState" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { padding: 20px 24px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .label { font-size: 10px; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; width: 90px; flex-shrink: 0; }
+</style>
+</head>
+<body data-theme="earth">
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="../../_ds_bundle.js"></script>
+  <script type="text/babel">
+    const { Card, Badge, FileTypeBadge, EmptyState, Button, Icon } = window.LocalUpdaterDesignSystem_672f59;
+    function App() {
+      return (
+        <div>
+          <div className="row">
+            <span className="label">Badge</span>
+            <Badge tone="accent" dot>更新</Badge>
+            <Badge tone="brand">35 件</Badge>
+            <Badge tone="success">完了</Badge>
+            <Badge tone="warning">注意</Badge>
+            <Badge tone="danger">エラー</Badge>
+            <Badge>標準</Badge>
+          </div>
+          <div className="row">
+            <span className="label">FileType</span>
+            <FileTypeBadge ext="dwg" />
+            <FileTypeBadge ext="png" />
+            <FileTypeBadge ext="pptx" />
+            <FileTypeBadge ext="docx" />
+            <FileTypeBadge ext="xlsx" />
+            <FileTypeBadge ext="pdf" />
+            <FileTypeBadge kind="other" />
+            <FileTypeBadge ext="step" size={44} />
+          </div>
+          <div className="row" style={{ alignItems: "stretch" }}>
+            <span className="label" style={{ alignSelf: "center" }}>Card</span>
+            <Card padding={14} style={{ width: 200 }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>監視中</div>
+              <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>35</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>件 · 109 MB</div>
+            </Card>
+            <Card padding={14} selected style={{ width: 200 }}>
+              <div style={{ fontSize: 12, color: "var(--text-accent)" }}>選択中</div>
+              <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>14 日</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>表示期間</div>
+            </Card>
+            <Card padding={0} style={{ width: 240, overflow: "hidden" }}>
+              <EmptyState
+                size="sm"
+                icon="folder-open"
+                title="該当なし"
+                description="検索条件を変えてみてください。"
+              />
+            </Card>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

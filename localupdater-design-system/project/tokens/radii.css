@@ -1,0 +1,9 @@
+:root {
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;       /* default for inputs, chips */
+  --radius-lg: 8px;       /* default for cards */
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-pill: 999px;
+}

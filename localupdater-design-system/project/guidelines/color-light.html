@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Light theme" subtitle="ミント × コーラル × 白基調" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 18px 20px; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .sw  { border-radius: 8px; padding: 10px 12px; height: 96px;
+         display: flex; flex-direction: column; justify-content: space-between;
+         border: 1px solid var(--border-subtle); }
+  .name{ font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+  .on  { color: var(--text-on-accent); }
+  .on .name { color: inherit; font-weight: 600;} .on .hex {color:inherit;opacity:.85;}
+</style>
+</head>
+<body data-theme="light">
+  <div class="row">
+    <div class="sw" style="background:var(--bg-app)">       <div class="name">app</div>    <div class="hex">#FAFBFC</div></div>
+    <div class="sw" style="background:var(--bg-sidebar)">   <div class="name">sidebar</div><div class="hex">#F1F3F6</div></div>
+    <div class="sw" style="background:var(--surface);border:1px solid var(--border)"><div class="name">surface</div><div class="hex">#FFFFFF</div></div>
+    <div class="sw on" style="background:var(--brand)">     <div class="name">brand</div>  <div class="hex">#2EAE92</div></div>
+    <div class="sw on" style="background:var(--accent)">    <div class="name">accent</div> <div class="hex">#FF7A69</div></div>
+    <div class="sw on" style="background:var(--warning)">   <div class="name">warning</div><div class="hex">#E8A93F</div></div>
+  </div>
+</body>
+</html>

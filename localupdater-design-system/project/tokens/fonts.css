@@ -1,0 +1,7 @@
+/* Google Fonts — chosen for clean Japanese + Latin pairing,
+   editable later by swapping the family names below.
+   - Inter:         Latin/numbers (matches Noto x-height well)
+   - Noto Sans JP:  Japanese UI text (most reliable JP UI font)
+   - JetBrains Mono: file paths, sizes, code
+*/
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap");

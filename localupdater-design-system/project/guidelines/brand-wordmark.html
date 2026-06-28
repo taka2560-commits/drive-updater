@@ -1,0 +1,73 @@
+<!-- @dsCard group="Brand" viewport="700x180" name="Wordmark" subtitle="LocalUpdater のロゴタイプ" -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { display: grid; place-items: center; padding: 24px; }
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+  }
+  .panel.light {
+    background: #FAFBFC;
+    border-color: rgba(20,30,40,.08);
+  }
+  .mark {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    color: var(--brand);
+  }
+  .panel.light .name { color: #2EAE92; }
+  .sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .panel.light .sub { color: #8A95A2; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="panel">
+      <div class="mark">
+        <span class="dot"></span>
+        <span class="name">LocalUpdater</span>
+      </div>
+      <span class="sub">最近更新されたファイル</span>
+    </div>
+    <div class="panel light" data-theme="light">
+      <div class="mark">
+        <span class="dot"></span>
+        <span class="name">LocalUpdater</span>
+      </div>
+      <span class="sub">最近更新されたファイル</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -17,29 +17,29 @@ export interface FileTypeMeta {
 
 // Map an extension to icon / color / human label.
 const EXT_META: Record<string, FileTypeMeta> = {
-  doc: { Icon: FileText, color: 'var(--color-head-text)', label: 'Word文書' },
-  docx: { Icon: FileText, color: 'var(--color-head-text)', label: 'Word文書' },
-  rtf: { Icon: FileText, color: 'var(--color-head-text)', label: 'リッチテキスト' },
-  txt: { Icon: FileText, color: 'var(--color-head-text)', label: 'テキスト' },
-  md: { Icon: FileText, color: 'var(--color-head-text)', label: 'Markdown' },
+  doc: { Icon: FileText, color: 'var(--text-brand)', label: 'Word文書' },
+  docx: { Icon: FileText, color: 'var(--text-brand)', label: 'Word文書' },
+  rtf: { Icon: FileText, color: 'var(--text-brand)', label: 'リッチテキスト' },
+  txt: { Icon: FileText, color: 'var(--text-brand)', label: 'テキスト' },
+  md: { Icon: FileText, color: 'var(--text-brand)', label: 'Markdown' },
 
-  xls: { Icon: FileSpreadsheet, color: 'var(--color-sec-text)', label: 'Excel' },
-  xlsx: { Icon: FileSpreadsheet, color: 'var(--color-sec-text)', label: 'Excel' },
-  csv: { Icon: FileSpreadsheet, color: 'var(--color-sec-text)', label: 'CSV' },
+  xls: { Icon: FileSpreadsheet, color: 'var(--text-brand)', label: 'Excel' },
+  xlsx: { Icon: FileSpreadsheet, color: 'var(--text-brand)', label: 'Excel' },
+  csv: { Icon: FileSpreadsheet, color: 'var(--text-brand)', label: 'CSV' },
 
-  ppt: { Icon: MonitorPlay, color: 'var(--color-accent)', label: 'PowerPoint' },
-  pptx: { Icon: MonitorPlay, color: 'var(--color-accent)', label: 'PowerPoint' },
-  key: { Icon: MonitorPlay, color: 'var(--color-accent)', label: 'Keynote' },
+  ppt: { Icon: MonitorPlay, color: 'var(--accent)', label: 'PowerPoint' },
+  pptx: { Icon: MonitorPlay, color: 'var(--accent)', label: 'PowerPoint' },
+  key: { Icon: MonitorPlay, color: 'var(--accent)', label: 'Keynote' },
 
   pdf: { Icon: FileText, color: '#F5A0A0', label: 'PDF' },
 
-  png: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'PNG画像' },
-  jpg: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'JPEG画像' },
-  jpeg: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'JPEG画像' },
-  gif: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'GIF画像' },
-  webp: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'WebP画像' },
-  svg: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'SVG画像' },
-  bmp: { Icon: ImageIcon, color: 'var(--color-head-text)', label: 'BMP画像' },
+  png: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'PNG画像' },
+  jpg: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'JPEG画像' },
+  jpeg: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'JPEG画像' },
+  gif: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'GIF画像' },
+  webp: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'WebP画像' },
+  svg: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'SVG画像' },
+  bmp: { Icon: ImageIcon, color: 'var(--text-brand)', label: 'BMP画像' },
 
   dwg: { Icon: Ruler, color: '#5DB8D4', label: 'AutoCAD図面' },
   dxf: { Icon: Ruler, color: '#5DB8D4', label: 'CAD交換形式' },
@@ -47,7 +47,7 @@ const EXT_META: Record<string, FileTypeMeta> = {
 
 const FALLBACK: FileTypeMeta = {
   Icon: FileIcon,
-  color: 'var(--color-muted)',
+  color: 'var(--text-secondary)',
   label: 'ファイル',
 };
 

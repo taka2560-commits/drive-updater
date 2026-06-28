@@ -11,12 +11,9 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 
 import { FileTable } from './components/FileTable';
 import { FileGroupList } from './components/FileGroupList';
-import { HeatmapSection } from './components/HeatmapSection';
-import { FilterContextBar } from './components/FilterContextBar';
-import { FileListC } from './components/FileListC';
+import { CalendarView } from './components/CalendarView';
 import { BulkActionBar } from './components/BulkActionBar';
 import { DetailPane } from './components/DetailPane';
-import { DetailModal } from './components/DetailModal';
 import { EmptyState } from './components/EmptyState';
 import { StarredContent } from './screens/StarredScreen';
 import { SettingsContent } from './screens/SettingsScreen';
@@ -138,15 +135,10 @@ function MainContent() {
     searchQuery,
     setSearchQuery,
     setTypeFilter,
-    filterByDate,
-    setFilterByDate,
     rescan,
-    selectedFile,
-    selectedPaths,
   } = useStore();
 
   const isEmpty = filteredFiles.length === 0;
-  const emptyVariant = filterByDate ? 'search' : folderFiles.length === 0 ? 'folder' : 'search';
 
   return (
     <>
@@ -154,23 +146,14 @@ function MainContent() {
       <BreadcrumbBar />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {viewMode === 'calendar' && <HeatmapSection />}
-          {viewMode === 'calendar' && <FilterContextBar />}
           {isEmpty ? (
             <EmptyState
-              variant={emptyVariant}
-              query={filterByDate ? `${filterByDate} のファイル` : searchQuery}
-              onPrimary={
-                filterByDate
-                  ? () => setFilterByDate(null)
-                  : folderFiles.length === 0
-                    ? rescan
-                    : () => setSearchQuery('')
-              }
+              variant={folderFiles.length === 0 ? 'folder' : 'search'}
+              query={searchQuery}
+              onPrimary={folderFiles.length === 0 ? rescan : () => setSearchQuery('')}
               onSecondary={() => {
                 setSearchQuery('');
                 setTypeFilter('all');
-                setFilterByDate(null);
               }}
             />
           ) : viewMode === 'list' ? (
@@ -178,15 +161,12 @@ function MainContent() {
           ) : viewMode === 'timeline' ? (
             <FileGroupList />
           ) : (
-            <FileListC />
+            <CalendarView />
           )}
-          <BulkActionBar />
+          {viewMode !== 'calendar' && <BulkActionBar />}
         </div>
         {viewMode === 'list' && <DetailPane />}
       </div>
-      {viewMode === 'calendar' && selectedFile && selectedPaths.size <= 1 && (
-        <DetailModal file={selectedFile} />
-      )}
     </>
   );
 }

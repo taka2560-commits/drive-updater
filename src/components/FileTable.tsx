@@ -1,9 +1,6 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Star,
-  ChevronsUpDown,
-  ChevronUp,
-  ChevronDown,
   Folder,
   ChevronRight,
   ExternalLink,
@@ -13,22 +10,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useStore } from '../storeContext';
-import { fileMeta } from '../lib/fileType';
-import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
-import type { FileEntry, SortKey } from '../types';
+import { FileTypeBadge } from './FileTypeBadge';
+import { groupByTime } from '../lib/grouping';
+import { formatRelativeTime, isRecent } from '../lib/format';
+import type { FileEntry } from '../types';
 
-const TH: CSSProperties = {
-  padding: '10px 8px',
-  textAlign: 'left',
-  fontSize: 11,
-  fontWeight: 700,
-  color: 'var(--color-head-text)',
-  letterSpacing: '0.04em',
-  userSelect: 'none',
-  cursor: 'pointer',
-};
-
-// Electron preload bridge (undefined in browser dev mode).
 function api() {
   return (window as unknown as { localUpdater?: Window['localUpdater'] }).localUpdater;
 }
@@ -37,6 +23,24 @@ interface MenuState {
   x: number;
   y: number;
   file: FileEntry;
+}
+
+function formatSizeNum(bytes: number): string {
+  if (bytes < 1024) return `${bytes}`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let v = bytes / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return v >= 100 || Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
+}
+
+function formatSizeUnit(bytes: number): string {
+  if (bytes < 1024) return 'B';
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let v = bytes / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return units[i];
 }
 
 export function FileTable() {
@@ -49,9 +53,6 @@ export function FileTable() {
     selectRange,
     isStarred,
     toggleStar,
-    sortKey,
-    sortDir,
-    toggleSort,
     isScanning,
     folders,
     browseInto,
@@ -63,7 +64,10 @@ export function FileTable() {
 
   const [menu, setMenu] = useState<MenuState | null>(null);
 
-  // Modifier-aware row click → single / toggle / range selection.
+  const dirs = useMemo(() => filteredFiles.filter((f) => f.isDir), [filteredFiles]);
+  const files = useMemo(() => filteredFiles.filter((f) => !f.isDir), [filteredFiles]);
+  const groups = useMemo(() => groupByTime(files), [files]);
+
   const onRowClick = (e: React.MouseEvent, file: FileEntry) => {
     if (e.metaKey || e.ctrlKey) toggleInSelection(file.path);
     else if (e.shiftKey) selectRange(file.path, filteredFiles.map((f) => f.path));
@@ -102,20 +106,13 @@ export function FileTable() {
   });
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-bg)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead style={{ position: 'sticky', top: 0, background: 'var(--color-surface-2)', zIndex: 5 }}>
-          <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-            <th style={{ ...TH, padding: '10px 8px 10px 16px', width: 32, cursor: 'default' }} />
-            <SortHeader label="ファイル名" col="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-            <th style={{ ...TH, width: 110, cursor: 'default' }}>フォルダ</th>
-            <SortHeader label="サイズ" col="size" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" width={80} />
-            <SortHeader label="更新" col="modified" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} width={130} padRight />
-          </tr>
-        </thead>
-        <tbody>
-          {filteredFiles.map((f) =>
-            f.isDir ? (
+    <div style={{ flex: 1, overflow: 'auto', padding: '8px 16px 24px' }}>
+      {/* Folder section */}
+      {dirs.length > 0 && (
+        <section style={{ marginTop: 4 }}>
+          <BucketHeader label="フォルダ" count={dirs.length} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {dirs.map((f) => (
               <FolderRow
                 key={f.path}
                 file={f}
@@ -123,11 +120,20 @@ export function FileTable() {
                 onSelect={(e) => onRowClick(e, f)}
                 onOpen={() => browseInto(f.path)}
                 onContextMenu={(e) => openMenu(e, f)}
-                folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
                 {...editProps(f)}
               />
-            ) : (
-              <Row
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Time-bucketed file sections */}
+      {groups.map((g) => (
+        <section key={g.key} style={{ marginTop: 12 }}>
+          <BucketHeader label={g.label} count={g.files.length} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {g.files.map((f) => (
+              <FileRow
                 key={f.path}
                 file={f}
                 selected={selectedPaths.has(f.path) || selectedPath === f.path}
@@ -138,193 +144,263 @@ export function FileTable() {
                 folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
                 {...editProps(f)}
               />
-            ),
-          )}
-        </tbody>
-      </table>
+            ))}
+          </div>
+        </section>
+      ))}
 
       {contextMenuEl}
     </div>
   );
 }
 
-// 右クリックメニュー（普通のエクスプローラー相当）
-function ContextMenu({
-  state,
-  starred,
-  onClose,
-  onOpenFolder,
-  onToggleStar,
-  onRename,
-  onDelete,
-}: {
-  state: MenuState;
-  starred: boolean;
-  onClose: () => void;
-  onOpenFolder: () => void;
-  onToggleStar: () => void;
-  onRename: () => void;
-  onDelete: () => void;
-}) {
-  const { x, y, file } = state;
+function BucketHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <header
+      style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        justifyContent: 'space-between',
+        padding: '8px 12px',
+        position: 'sticky',
+        top: 0,
+        background: 'var(--bg-app)',
+        zIndex: 1,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10.5,
+          color: 'var(--text-muted)',
+        }}
+      >
+        {count} 件
+      </span>
+    </header>
+  );
+}
 
-  // Close on any outside click / Escape.
-  useEffect(() => {
-    const onDown = () => onClose();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
+function FileRow({
+  file,
+  selected,
+  starred,
+  onSelect,
+  onToggleStar,
+  onContextMenu,
+  folderLabel,
+  editing,
+  onRenameCommit,
+  onRenameCancel,
+}: {
+  file: FileEntry;
+  selected: boolean;
+  starred: boolean;
+  onSelect: (e: React.MouseEvent) => void;
+  onToggleStar: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  folderLabel: string;
+  editing: boolean;
+  onRenameCommit: (name: string) => void;
+  onRenameCancel: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const recent = isRecent(file.modifiedAt);
 
   return (
     <div
-      onMouseDown={(e) => e.stopPropagation()}
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        position: 'fixed',
-        top: y,
-        left: x,
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 8,
-        boxShadow: 'var(--shadow-md)',
-        zIndex: 100,
-        padding: 4,
-        minWidth: 190,
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto auto auto',
+        alignItems: 'center',
+        gap: 12,
+        height: 36,
+        padding: '0 12px',
+        borderRadius: 'var(--radius-sm)',
+        background: selected ? 'var(--accent-soft)' : hover ? 'var(--surface-hover)' : 'transparent',
+        cursor: 'pointer',
+        transition: 'background var(--dur-fast) var(--ease-out)',
       }}
     >
-      <div
+      <FileTypeBadge ext={file.ext} size={22} showLabel={false} />
+      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {editing ? (
+          <RenameInput initial={file.name} isDir={false} onCommit={onRenameCommit} onCancel={onRenameCancel} />
+        ) : (
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {file.name}
+          </span>
+        )}
+        {recent && !editing && (
+          <span
+            style={{
+              fontSize: 9,
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              color: 'var(--accent)',
+              background: 'var(--accent-soft)',
+              padding: '1px 5px',
+              borderRadius: 3,
+              letterSpacing: '0.08em',
+              lineHeight: 1.4,
+              flexShrink: 0,
+            }}
+          >
+            NEW
+          </span>
+        )}
+      </div>
+      <span
         style={{
-          padding: '7px 12px 8px',
           fontSize: 11,
-          fontWeight: 700,
-          color: 'var(--color-muted)',
-          borderBottom: '1px solid var(--color-border)',
-          marginBottom: 4,
+          color: 'var(--text-muted)',
+          fontFamily: 'var(--font-mono)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          maxWidth: 160,
+        }}
+        title={folderLabel}
+      >
+        {folderLabel}
+      </span>
+      <span
+        style={{
+          textAlign: 'right',
+          minWidth: 76,
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          justifyContent: 'flex-end',
+          gap: 3,
+          fontFamily: 'var(--font-mono)',
+          fontVariantNumeric: 'tabular-nums',
         }}
       >
-        {file.name}
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>
+          {formatSizeNum(file.sizeBytes)}
+        </span>
+        <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+          {formatSizeUnit(file.sizeBytes)}
+        </span>
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 80, justifyContent: 'flex-end' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
+          aria-label={starred ? 'スターを外す' : 'スターを付ける'}
+          style={{
+            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            display: 'inline-flex', opacity: starred || hover ? 1 : 0,
+            transition: 'opacity var(--dur-fast) var(--ease-out)',
+          }}
+        >
+          <Star
+            size={13}
+            color={starred ? 'var(--accent)' : 'var(--text-muted)'}
+            fill={starred ? 'var(--accent)' : 'none'}
+          />
+        </button>
+        <span style={{ fontSize: 11, color: recent ? 'var(--accent)' : 'var(--text-muted)', minWidth: 52, textAlign: 'right' }}>
+          {formatRelativeTime(file.modifiedAt)}
+        </span>
       </div>
-
-      {file.isDir ? (
-        <MenuItem
-          Icon={Folder}
-          label="フォルダを開く"
-          onClick={() => {
-            onOpenFolder();
-            onClose();
-          }}
-        />
-      ) : (
-        <MenuItem
-          Icon={ExternalLink}
-          label="開く"
-          onClick={() => {
-            api()?.openPath(file.path);
-            onClose();
-          }}
-        />
-      )}
-
-      <MenuItem
-        Icon={FolderOpen}
-        label="保存場所を開く"
-        onClick={() => {
-          api()?.showInFolder(file.path);
-          onClose();
-        }}
-      />
-
-      {!file.isDir && (
-        <MenuItem
-          Icon={Star}
-          label={starred ? 'スターを外す' : 'スターをつける'}
-          onClick={() => {
-            onToggleStar();
-            onClose();
-          }}
-        />
-      )}
-
-      <MenuItem
-        Icon={Copy}
-        label="パスをコピー"
-        onClick={() => {
-          navigator.clipboard?.writeText(file.path).catch(() => {});
-          onClose();
-        }}
-      />
-
-      <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
-
-      <MenuItem
-        Icon={Pencil}
-        label="名前を変更"
-        onClick={() => {
-          onRename();
-          onClose();
-        }}
-      />
-      <MenuItem
-        Icon={Trash2}
-        label="ゴミ箱に移動"
-        danger
-        onClick={() => {
-          onDelete();
-          onClose();
-        }}
-      />
     </div>
   );
 }
 
-function MenuItem({
-  Icon,
-  label,
-  onClick,
-  danger = false,
+function FolderRow({
+  file,
+  selected,
+  onSelect,
+  onOpen,
+  onContextMenu,
+  editing,
+  onRenameCommit,
+  onRenameCancel,
 }: {
-  Icon: typeof Copy;
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
+  file: FileEntry;
+  selected: boolean;
+  onSelect: (e: React.MouseEvent) => void;
+  onOpen: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  editing: boolean;
+  onRenameCommit: (name: string) => void;
+  onRenameCancel: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
-  const color = danger ? '#D46A6A' : 'var(--color-text)';
+  const [hover, setHover] = useState(false);
+
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <div
+      onClick={onSelect}
+      onDoubleClick={editing ? undefined : onOpen}
+      onContextMenu={onContextMenu}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '7px 12px',
-        fontSize: 12,
-        border: 'none',
-        background: hovered ? 'var(--color-bg)' : 'transparent',
-        color,
-        cursor: 'pointer',
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
         alignItems: 'center',
-        gap: 9,
-        borderRadius: 4,
-        fontFamily: 'var(--font-sans)',
+        gap: 12,
+        height: 36,
+        padding: '0 12px',
+        borderRadius: 'var(--radius-sm)',
+        background: selected ? 'var(--accent-soft)' : hover ? 'var(--surface-hover)' : 'transparent',
+        cursor: 'pointer',
+        transition: 'background var(--dur-fast) var(--ease-out)',
       }}
     >
-      <Icon size={14} style={{ flexShrink: 0, color: danger ? '#D46A6A' : 'var(--color-muted)' }} />
-      {label}
-    </button>
+      <Folder size={18} color="var(--text-brand)" style={{ flexShrink: 0 }} />
+      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {editing ? (
+          <RenameInput initial={file.name} isDir onCommit={onRenameCommit} onCancel={onRenameCancel} />
+        ) : (
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: selected ? 700 : 500,
+              color: 'var(--text-brand)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {file.name}
+          </span>
+        )}
+        {hover && !editing && (
+          <ChevronRight size={12} color="var(--text-muted)" style={{ flexShrink: 0, marginLeft: 'auto' }} />
+        )}
+      </div>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+        {formatRelativeTime(file.modifiedAt)}
+      </span>
+    </div>
   );
 }
 
-// インラインのリネーム入力（拡張子を除いた部分を初期選択）
 function RenameInput({
   initial,
   isDir,
@@ -360,254 +436,138 @@ function RenameInput({
         fontSize: 13,
         fontFamily: 'var(--font-sans)',
         padding: '2px 6px',
-        border: '1px solid var(--color-accent)',
+        border: '1px solid var(--accent)',
         borderRadius: 4,
-        background: 'var(--color-surface)',
-        color: 'var(--color-text)',
+        background: 'var(--surface)',
+        color: 'var(--text-primary)',
         outline: 'none',
       }}
     />
   );
 }
 
-function SortHeader({
-  label,
-  col,
-  sortKey,
-  sortDir,
-  onSort,
-  align = 'left',
-  width,
-  padRight = false,
-}: {
-  label: string;
-  col: SortKey;
-  sortKey: SortKey;
-  sortDir: 'asc' | 'desc';
-  onSort: (k: SortKey) => void;
-  align?: 'left' | 'right';
-  width?: number;
-  padRight?: boolean;
-}) {
-  const activeSort = sortKey === col;
-  const Indicator = !activeSort ? ChevronsUpDown : sortDir === 'asc' ? ChevronUp : ChevronDown;
-  return (
-    <th
-      onClick={() => onSort(col)}
-      style={{
-        ...TH,
-        width,
-        textAlign: align,
-        padding: padRight ? '10px 16px 10px 8px' : '10px 8px',
-      }}
-    >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {label}
-        <Indicator size={11} color={activeSort ? 'var(--color-accent)' : 'var(--color-disabled)'} />
-      </span>
-    </th>
-  );
-}
-
-// フォルダ行（ダブルクリックまたは矢印アイコンでドリルダウン）
-function FolderRow({
-  file,
-  selected,
-  onSelect,
-  onOpen,
-  onContextMenu,
-  folderLabel,
-  editing,
-  onRenameCommit,
-  onRenameCancel,
-}: {
-  file: FileEntry;
-  selected: boolean;
-  onSelect: (e: React.MouseEvent) => void;
-  onOpen: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  folderLabel: string;
-  editing: boolean;
-  onRenameCommit: (name: string) => void;
-  onRenameCancel: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const rowBg = selected
-    ? 'rgba(var(--accent-rgb), 0.08)'
-    : hovered
-      ? 'var(--color-surface-2)'
-      : 'transparent';
-
-  return (
-    <tr
-      role="row"
-      aria-selected={selected}
-      onClick={onSelect}
-      onDoubleClick={editing ? undefined : onOpen}
-      onContextMenu={onContextMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderBottom: '1px solid rgba(127,127,127,0.18)',
-        background: rowBg,
-        cursor: 'pointer',
-        height: 36,
-      }}
-    >
-      {/* Star column (empty for folders) */}
-      <td style={{ padding: '8px 8px 8px 16px', textAlign: 'center' }} />
-      {/* Name column */}
-      <td style={{ padding: '8px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Folder size={15} color="var(--color-head-text)" style={{ flexShrink: 0 }} />
-          {editing ? (
-            <RenameInput initial={file.name} isDir onCommit={onRenameCommit} onCancel={onRenameCancel} />
-          ) : (
-            <span
-              style={{
-                fontSize: 13,
-                color: 'var(--color-head-text)',
-                fontWeight: selected ? 700 : 500,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 380,
-              }}
-            >
-              {file.name}
-            </span>
-          )}
-          {hovered && !editing && (
-            <ChevronRight size={12} color="var(--color-disabled)" style={{ flexShrink: 0, marginLeft: 'auto' }} />
-          )}
-        </div>
-      </td>
-      {/* Folder label */}
-      <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>{folderLabel}</td>
-      {/* Size: — for folders */}
-      <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-disabled)', textAlign: 'right' }}>—</td>
-      {/* Modified date */}
-      <td style={{ padding: '8px 16px 8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>
-        {formatRelativeTime(file.modifiedAt)}
-      </td>
-    </tr>
-  );
-}
-
-function Row({
-  file,
-  selected,
+function ContextMenu({
+  state,
   starred,
-  onSelect,
+  onClose,
+  onOpenFolder,
   onToggleStar,
-  onContextMenu,
-  folderLabel,
-  editing,
-  onRenameCommit,
-  onRenameCancel,
+  onRename,
+  onDelete,
 }: {
-  file: FileEntry;
-  selected: boolean;
+  state: MenuState;
   starred: boolean;
-  onSelect: (e: React.MouseEvent) => void;
+  onClose: () => void;
+  onOpenFolder: () => void;
   onToggleStar: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  folderLabel: string;
-  editing: boolean;
-  onRenameCommit: (name: string) => void;
-  onRenameCancel: () => void;
+  onRename: () => void;
+  onDelete: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
-  const meta = fileMeta(file.ext);
-  const recent = isRecent(file.modifiedAt);
+  const { x, y, file } = state;
 
-  const rowBg = selected
-    ? 'rgba(var(--accent-rgb), 0.10)'
-    : hovered
-      ? 'var(--color-surface-2)'
-      : 'transparent';
+  useEffect(() => {
+    const onDown = () => onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
 
   return (
-    <tr
-      role="row"
-      aria-selected={selected}
-      onClick={onSelect}
-      onContextMenu={onContextMenu}
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top: y,
+        left: x,
+        background: 'var(--surface-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-md)',
+        zIndex: 100,
+        padding: 4,
+        minWidth: 190,
+      }}
+    >
+      <div
+        style={{
+          padding: '7px 12px 8px',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--text-muted)',
+          borderBottom: '1px solid var(--border)',
+          marginBottom: 4,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {file.name}
+      </div>
+
+      {file.isDir ? (
+        <MenuItem Icon={Folder} label="フォルダを開く" onClick={() => { onOpenFolder(); onClose(); }} />
+      ) : (
+        <MenuItem Icon={ExternalLink} label="開く" onClick={() => { api()?.openPath(file.path); onClose(); }} />
+      )}
+      <MenuItem Icon={FolderOpen} label="保存場所を開く" onClick={() => { api()?.showInFolder(file.path); onClose(); }} />
+      {!file.isDir && (
+        <MenuItem Icon={Star} label={starred ? 'スターを外す' : 'スターをつける'} onClick={() => { onToggleStar(); onClose(); }} />
+      )}
+      <MenuItem Icon={Copy} label="パスをコピー" onClick={() => { navigator.clipboard?.writeText(file.path).catch(() => {}); onClose(); }} />
+      <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+      <MenuItem Icon={Pencil} label="名前を変更" onClick={() => { onRename(); onClose(); }} />
+      <MenuItem Icon={Trash2} label="ゴミ箱に移動" danger onClick={() => { onDelete(); onClose(); }} />
+    </div>
+  );
+}
+
+function MenuItem({
+  Icon,
+  label,
+  onClick,
+  danger = false,
+}: {
+  Icon: typeof Copy;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const color = danger ? 'var(--danger)' : 'var(--text-primary)';
+  return (
+    <button
+      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        borderBottom: '1px solid rgba(127,127,127,0.18)',
-        background: rowBg,
+        width: '100%',
+        textAlign: 'left',
+        padding: '7px 12px',
+        fontSize: 12,
+        border: 'none',
+        background: hovered ? 'var(--surface-hover)' : 'transparent',
+        color,
         cursor: 'pointer',
-        height: 36,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        borderRadius: 'var(--radius-sm)',
+        fontFamily: 'var(--font-sans)',
       }}
     >
-      <td style={{ padding: '8px 8px 8px 16px', textAlign: 'center' }}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStar();
-          }}
-          aria-label={starred ? 'スターを外す' : 'スターを付ける'}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}
-        >
-          <Star
-            size={13}
-            color={starred ? 'var(--color-accent)' : 'var(--color-disabled)'}
-            fill={starred ? 'var(--color-accent)' : 'none'}
-          />
-        </button>
-      </td>
-      <td style={{ padding: '8px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <meta.Icon size={15} color={meta.color} style={{ flexShrink: 0 }} />
-          {editing ? (
-            <RenameInput initial={file.name} isDir={false} onCommit={onRenameCommit} onCancel={onRenameCancel} />
-          ) : (
-            <span
-              style={{
-                fontSize: 13,
-                color: 'var(--color-text)',
-                fontWeight: selected ? 700 : 400,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 380,
-              }}
-            >
-              {file.name}
-            </span>
-          )}
-        </div>
-      </td>
-      <td style={{ padding: '8px 8px', fontSize: 11, color: 'var(--color-muted)' }}>{folderLabel}</td>
-      <td
-        style={{
-          padding: '8px 8px',
-          fontSize: 11,
-          color: 'var(--color-muted)',
-          textAlign: 'right',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        {formatBytes(file.sizeBytes)}
-      </td>
-      <td
-        style={{
-          padding: '8px 16px 8px 8px',
-          fontSize: 11,
-          color: recent ? 'var(--color-accent)' : 'var(--color-muted)',
-        }}
-      >
-        {formatRelativeTime(file.modifiedAt)}
-      </td>
-    </tr>
+      <Icon size={14} style={{ flexShrink: 0, color: danger ? 'var(--danger)' : 'var(--text-muted)' }} />
+      {label}
+    </button>
   );
 }
 
 function Skeleton() {
   return (
-    <div style={{ flex: 1, overflow: 'hidden', background: 'var(--color-bg)', padding: '8px 16px' }}>
+    <div style={{ flex: 1, overflow: 'hidden', padding: '8px 16px' }}>
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
@@ -616,7 +576,7 @@ function Skeleton() {
             height: 20,
             margin: '8px 0',
             borderRadius: 4,
-            background: 'var(--color-surface-2)',
+            background: 'var(--surface-elevated)',
             animationDelay: `${i * 0.08}s`,
           }}
         />

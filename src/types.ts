@@ -40,7 +40,7 @@ export type SortKey = 'modified' | 'name' | 'size';
 export type SortDir = 'asc' | 'desc';
 export type ViewMode = 'list' | 'timeline' | 'calendar';
 
-export type PeriodFilter = '1d' | '7d' | '14d' | '30d';
+export type PeriodFilter = 'all' | '1d' | '7d' | '14d' | '30d';
 
 // Quick filters. 'all' = no constraint.
 export type DateRange = 'all' | 'today' | 'week' | 'month';

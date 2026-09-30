@@ -1,8 +1,8 @@
-import { FolderOpen, SearchX, Star } from 'lucide-react';
+import { FolderOpen, SearchX, SlidersHorizontal, Star } from 'lucide-react';
 import { Button } from './ui';
 
 interface EmptyStateProps {
-  variant: 'folder' | 'search' | 'starred';
+  variant: 'folder' | 'search' | 'filter' | 'starred';
   query?: string;
   onPrimary?: () => void;
   onSecondary?: () => void;
@@ -24,6 +24,13 @@ export function EmptyState({ variant, query, onPrimary, onSecondary }: EmptyStat
       sub: undefined,
       primary: '検索をクリア',
       secondary: 'すべて表示',
+    },
+    filter: {
+      Icon: SlidersHorizontal,
+      title: 'フィルタ条件に一致するファイルがありません',
+      sub: '種別・期間・サイズの絞り込みで、すべてのファイルが除外されています',
+      primary: 'すべて表示（絞り込みを解除）',
+      secondary: undefined as string | undefined,
     },
     starred: {
       Icon: Star,

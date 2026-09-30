@@ -3,9 +3,13 @@ import { Star, Folder } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
 import { ContextMenu, type MenuState } from './ContextMenu';
-import { groupByTime } from '../lib/grouping';
+import { FilteredOutHint } from './FilteredOutHint';
+import { groupByTime, limitGroups } from '../lib/grouping';
 import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
+import { locationLabel } from '../lib/paths';
 import type { FileEntry } from '../types';
+
+const MAX_CARDS = 300;
 
 export function FileGroupList() {
   const {
@@ -17,7 +21,11 @@ export function FileGroupList() {
     selectOne,
     selectedPaths,
     setEditingPath,
+    setViewMode,
     requestDelete,
+    sortKey,
+    sortDir,
+    folderFiles,
   } = useStore();
 
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -30,7 +38,19 @@ export function FileGroupList() {
 
   const dirs = useMemo(() => filteredFiles.filter((f) => f.isDir), [filteredFiles]);
   const files = useMemo(() => filteredFiles.filter((f) => !f.isDir), [filteredFiles]);
-  const groups = useMemo(() => groupByTime(files), [files]);
+  const { groups, hidden } = useMemo(
+    () =>
+      limitGroups(
+        groupByTime(files, new Date(), sortKey === 'modified' && sortDir === 'asc'),
+        MAX_CARDS,
+      ),
+    [files, sortKey, sortDir],
+  );
+
+  const whereOf = (f: FileEntry) => {
+    const fd = folders.find((x) => x.key === f.folder);
+    return fd ? locationLabel(fd.label, fd.path, f.path) : '';
+  };
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 32px 32px' }}>
@@ -86,7 +106,7 @@ export function FileGroupList() {
               <TimelineFileCard
                 key={f.path}
                 file={f}
-                folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+                folderLabel={whereOf(f)}
                 starred={isStarred(f.path)}
                 onSelect={() => selectOne(f.path)}
                 onToggleStar={() => toggleStar(f.path)}
@@ -95,6 +115,14 @@ export function FileGroupList() {
             ))}
           </TimelineSection>
         ))}
+
+        {files.length === 0 && dirs.length > 0 && folderFiles.some((f) => !f.isDir) && <FilteredOutHint />}
+
+        {hidden > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '4px 0 0' }}>
+            ほか {hidden.toLocaleString('ja-JP')} 件は表示していません。期間・種別・検索で絞り込むと表示できます。
+          </div>
+        )}
       </div>
 
       {menu && (
@@ -104,7 +132,11 @@ export function FileGroupList() {
           onClose={() => setMenu(null)}
           onOpenFolder={() => browseInto(menu.file.path)}
           onToggleStar={() => toggleStar(menu.file.path)}
-          onRename={() => setEditingPath(menu.file.path)}
+          // Inline rename lives in the list view, so switch there first.
+          onRename={() => {
+            setViewMode('list');
+            setEditingPath(menu.file.path);
+          }}
           onDelete={() => requestDelete([menu.file.path])}
         />
       )}
@@ -201,9 +233,11 @@ function TimelineFileCard({
   return (
     <article
       onClick={onSelect}
+      onDoubleClick={() => window.localUpdater?.openPath(file.path)}
       onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      title="ダブルクリックで開く"
       style={{
         display: 'grid',
         gridTemplateColumns: 'auto 1fr auto',

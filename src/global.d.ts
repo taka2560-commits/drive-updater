@@ -3,6 +3,7 @@
 interface LocalUpdaterAPI {
   openPath: (p: string) => Promise<void>;
   showInFolder: (p: string) => Promise<void>;
+  openExternal: (url: string) => Promise<void>;
   getDefaultPaths: () => Promise<{ desktop: string; documents: string; downloads: string }>;
   selectFolder: () => Promise<{ name: string; path: string } | null>;
   scanFolders: (
@@ -21,3 +22,6 @@ interface LocalUpdaterAPI {
 interface Window {
   localUpdater?: LocalUpdaterAPI;
 }
+
+// Injected by vite.config.ts from package.json ("version").
+declare const __APP_VERSION__: string;

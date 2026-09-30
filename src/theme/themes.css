@@ -57,6 +57,7 @@
   --text-muted: #6b7585;
   --text-faint: #4f5867;
   --text-on-accent: #1b232c;
+  --text-on-brand: #1b232c; /* dark text on the light-blue brand fill (light text was 2:1) */
   --text-brand: var(--sky-500);
   --text-accent: var(--amber-500);
   --text-link: var(--sky-400);
@@ -117,6 +118,7 @@
   --text-muted: #6a769b;
   --text-faint: #4a5478;
   --text-on-accent: #0a1126;
+  --text-on-brand: #0a1126;
   --text-brand: #5286ff;
   --text-accent: #ffd23f;
   --text-link: #82a6ff;
@@ -174,6 +176,7 @@
   --text-muted: #8a95a2;
   --text-faint: #b2bcc8;
   --text-on-accent: #ffffff;
+  --text-on-brand: #10201b;
   --text-brand: #2eae92;
   --text-accent: #ff7a69;
   --text-link: #2eae92;

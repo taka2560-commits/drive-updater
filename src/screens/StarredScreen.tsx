@@ -15,7 +15,7 @@ const FOLDER_ICON: Record<string, LucideIcon> = {
 };
 
 export function StarredContent() {
-  const { allFiles, starred, setSelected, setScreen, toggleStar, folders } = useStore();
+  const { allFiles, starred, revealFile, toggleStar, folders } = useStore();
 
   const starredFiles = useMemo(
     () => allFiles.filter((f) => starred.has(f.path) && !f.isDir),
@@ -31,10 +31,8 @@ export function StarredContent() {
     })).filter((g) => g.files.length > 0);
   }, [starredFiles, folders]);
 
-  const open = (path: string) => {
-    setSelected(path);
-    setScreen('main');
-  };
+  // Jump to the file's own folder (and sub-folder) with it selected.
+  const open = (path: string) => revealFile(path);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
@@ -45,7 +43,7 @@ export function StarredContent() {
             スター付きファイル
           </h1>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {starred.size}件 · 全フォルダ横断
+            {starredFiles.length}件 · 全フォルダ横断
           </span>
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0', lineHeight: 1.5 }}>

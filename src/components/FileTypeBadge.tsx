@@ -7,6 +7,8 @@ import {
   Ruler,
   type LucideIcon,
 } from 'lucide-react';
+import { kindOf } from '../lib/fileType';
+import type { FileTypeFilter } from '../types';
 
 interface KindDef {
   color: string;
@@ -14,24 +16,14 @@ interface KindDef {
   label: string;
 }
 
-const KINDS: Record<string, KindDef> = {
+const KINDS: Record<Exclude<FileTypeFilter, 'all'>, KindDef> = {
   cad:    { color: '#7BA9CE', Icon: Ruler,           label: 'CAD' },
   image:  { color: '#6FB68C', Icon: ImageIcon,       label: 'IMG' },
   slides: { color: '#E8A05A', Icon: MonitorPlay,     label: 'PPT' },
-  doc:    { color: '#92BAD9', Icon: FileText,         label: 'DOC' },
-  sheet:  { color: '#6FB68C', Icon: FileSpreadsheet,  label: 'XLS' },
+  docs:   { color: '#92BAD9', Icon: FileText,         label: 'DOC' },
+  sheets: { color: '#6FB68C', Icon: FileSpreadsheet,  label: 'XLS' },
   pdf:    { color: '#D87060', Icon: FileText,         label: 'PDF' },
   other:  { color: '#9AA4B0', Icon: FileIcon,         label: '—' },
-};
-
-const EXT_MAP: Record<string, string> = {
-  dwg: 'cad', dxf: 'cad', step: 'cad', stp: 'cad', iges: 'cad', igs: 'cad',
-  png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', bmp: 'image',
-  tif: 'image', tiff: 'image', webp: 'image', svg: 'image', heic: 'image',
-  ppt: 'slides', pptx: 'slides', key: 'slides',
-  doc: 'doc', docx: 'doc', txt: 'doc', md: 'doc', rtf: 'doc',
-  xls: 'sheet', xlsx: 'sheet', csv: 'sheet', numbers: 'sheet',
-  pdf: 'pdf',
 };
 
 export function FileTypeBadge({
@@ -43,8 +35,7 @@ export function FileTypeBadge({
   size?: number;
   showLabel?: boolean;
 }) {
-  const kind = EXT_MAP[ext?.toLowerCase()] ?? 'other';
-  const k = KINDS[kind];
+  const k = KINDS[kindOf(ext ?? '')];
   const label = ext ? ext.toUpperCase().slice(0, 4) : k.label;
 
   return (

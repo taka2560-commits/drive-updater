@@ -3,7 +3,7 @@ import { join, dirname, extname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
-import chokidar from 'chokidar';
+import { watch, type FSWatcher } from 'chokidar';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -74,11 +74,36 @@ ipcMain.handle('trash-item', async (_e, p: string) => {
   }
 });
 
+// 外部リンク（GitHub のみ許可）
+ipcMain.handle('open-external', (_e, url: string) => {
+  if (typeof url === 'string' && /^https:\/\/github\.com\//.test(url)) return shell.openExternal(url);
+});
+
+// Windows で使えないファイル名（renderer 側 lib/fileName.ts と同じ規則）
+const INVALID_NAME_CHARS = /[\\/:*?"<>|]/;
+const hasControlChar = (s: string) => [...s].some((c) => c.charCodeAt(0) < 32);
+const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+const CASE_INSENSITIVE_FS = process.platform === 'win32' || process.platform === 'darwin';
+
 // ファイル/フォルダ名を変更し、新しいパスを返す（失敗時 null）
 ipcMain.handle('rename-item', (_e, oldPath: string, newName: string) => {
   try {
+    if (
+      typeof newName !== 'string' ||
+      !newName ||
+      newName === '.' ||
+      newName === '..' ||
+      INVALID_NAME_CHARS.test(newName) ||
+      hasControlChar(newName) ||
+      /[. ]$/.test(newName) ||
+      RESERVED_NAMES.test(newName)
+    ) {
+      return null; // 別フォルダへの移動や不正な名前は許可しない
+    }
     const next = path.join(path.dirname(oldPath), newName);
-    if (fs.existsSync(next)) return null; // 同名が既に存在
+    // 大文字小文字だけの変更は「同じファイル」なので存在チェックを飛ばす
+    const sameFile = CASE_INSENSITIVE_FS && next.toLowerCase() === oldPath.toLowerCase();
+    if (!sameFile && fs.existsSync(next)) return null; // 同名が既に存在
     fs.renameSync(oldPath, next);
     return next;
   } catch {
@@ -86,12 +111,22 @@ ipcMain.handle('rename-item', (_e, oldPath: string, newName: string) => {
   }
 });
 
-// テキストファイルの内容を返す（256KB上限・失敗時 null）
+// テキストファイルの内容を返す（256KB上限・失敗時 null）。UTF-8 で読めなければ Shift_JIS として解釈
 ipcMain.handle('read-text', (_e, filePath: string) => {
   try {
     const stat = fs.statSync(filePath);
     if (stat.size > 256 * 1024) return null;
-    return fs.readFileSync(filePath, 'utf8');
+    const buf = fs.readFileSync(filePath);
+    if (buf.subarray(0, 4096).includes(0)) return null; // バイナリ
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    } catch {
+      try {
+        return new TextDecoder('shift_jis').decode(buf);
+      } catch {
+        return buf.toString('utf8');
+      }
+    }
   } catch {
     return null;
   }
@@ -110,68 +145,89 @@ interface FileEntry {
   isDir: boolean;
 }
 
-// ディレクトリを走査してファイル + サブフォルダを返す
-function scanDir(
+// 同時に発行するファイル操作の上限（大きなフォルダでもメインプロセスを止めず、ハンドルも使い切らない）
+function createLimiter(max: number) {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  return async function run<T>(fn: () => Promise<T>): Promise<T> {
+    if (active >= max) await new Promise<void>((resolve) => waiting.push(resolve));
+    else active++;
+    try {
+      return await fn();
+    } finally {
+      const next = waiting.shift();
+      if (next) next(); // 枠を待機中の処理へ引き渡す
+      else active--;
+    }
+  };
+}
+type Limiter = ReturnType<typeof createLimiter>;
+
+// ディレクトリを走査してファイル + サブフォルダを返す（非同期。UI をブロックしない）
+async function scanDir(
   dir: string,
   folderKey: string,
   recursive: boolean,
-  excludeKeywords: string[],
-): FileEntry[] {
-  const results: FileEntry[] = [];
-  let entries: string[];
+  excludeSet: Set<string>,
+  limit: Limiter,
+): Promise<FileEntry[]> {
+  let entries: fs.Dirent[];
   try {
-    entries = fs.readdirSync(dir);
+    entries = await limit(() => fs.promises.readdir(dir, { withFileTypes: true }));
   } catch {
-    return results;
+    return [];
   }
 
-  // Exclude on whole-name match (case-insensitive), not substring: a keyword
-  // like "dist" hides a folder/file *named* dist, never "distribution.pdf".
-  const excludeSet = new Set(excludeKeywords.map((k) => k.toLowerCase()));
+  const perEntry = await Promise.all(
+    entries.map(async (dirent): Promise<FileEntry[]> => {
+      const entry = dirent.name;
+      // Office のロックファイル (~$...) とドットファイルは対象外
+      if (entry.startsWith('.') || entry.startsWith('~$')) return [];
+      // Exclude on whole-name match (case-insensitive), not substring: a keyword
+      // like "dist" hides a folder/file *named* dist, never "distribution.pdf".
+      if (excludeSet.has(entry.toLowerCase())) return [];
 
-  for (const entry of entries) {
-    if (entry.startsWith('.')) continue;
-    if (excludeSet.has(entry.toLowerCase())) continue;
-
-    const fullPath = path.join(dir, entry);
-    let stat: fs.Stats;
-    try {
-      stat = fs.statSync(fullPath);
-    } catch {
-      continue;
-    }
-
-    if (stat.isDirectory()) {
-      results.push({
-        path: fullPath,
-        name: entry,
-        ext: '',
-        folder: folderKey,
-        sizeBytes: 0,
-        modifiedAt: stat.mtime.getTime(),
-        accessedAt: stat.atime.getTime(),
-        createdAt: stat.birthtime.getTime(),
-        isDir: true,
-      });
-      if (recursive) {
-        results.push(...scanDir(fullPath, folderKey, recursive, excludeKeywords));
+      const fullPath = path.join(dir, entry);
+      let stat: fs.Stats;
+      try {
+        stat = await limit(() => fs.promises.stat(fullPath));
+      } catch {
+        return [];
       }
-    } else {
-      const ext = extname(entry).slice(1).toLowerCase();
-      results.push({
-        path: fullPath,
-        name: entry,
-        ext,
-        folder: folderKey,
-        sizeBytes: stat.size,
-        modifiedAt: stat.mtime.getTime(),
-        accessedAt: stat.atime.getTime(),
-        createdAt: stat.birthtime.getTime(),
-        isDir: false,
-      });
-    }
-  }
-  return results;
+
+      if (stat.isDirectory()) {
+        const self: FileEntry = {
+          path: fullPath,
+          name: entry,
+          ext: '',
+          folder: folderKey,
+          sizeBytes: 0,
+          modifiedAt: stat.mtime.getTime(),
+          accessedAt: stat.atime.getTime(),
+          createdAt: stat.birthtime.getTime(),
+          isDir: true,
+        };
+        // シンボリックリンク/ジャンクションは辿らない（循環参照の防止）
+        if (!recursive || dirent.isSymbolicLink()) return [self];
+        const children = await scanDir(fullPath, folderKey, recursive, excludeSet, limit);
+        return [self, ...children];
+      }
+      return [
+        {
+          path: fullPath,
+          name: entry,
+          ext: extname(entry).slice(1).toLowerCase(),
+          folder: folderKey,
+          sizeBytes: stat.size,
+          modifiedAt: stat.mtime.getTime(),
+          accessedAt: stat.atime.getTime(),
+          createdAt: stat.birthtime.getTime(),
+          isDir: false,
+        },
+      ];
+    }),
+  );
+  return perEntry.flat();
 }
 
 // 複数フォルダをスキャンして FileEntry[] を返す
@@ -183,17 +239,19 @@ ipcMain.handle(
     recursive = false,
     excludeKeywords: string[] = [],
   ) => {
-    const results: FileEntry[] = [];
-    for (const folder of folders) {
-      results.push(...scanDir(folder.path, folder.key, recursive, excludeKeywords));
-    }
-    return results;
+    const excludeSet = new Set(excludeKeywords.map((k) => k.toLowerCase()));
+    const limit = createLimiter(64);
+    const perFolder = await Promise.all(
+      folders.map((folder) => scanDir(folder.path, folder.key, recursive, excludeSet, limit)),
+    );
+    return perFolder.flat();
   },
 );
 
-// 画像プレビュー: Base64 データURLを返す
+// 画像プレビュー: Base64 データURLを返す（25MB 超は読み込まない）
 ipcMain.handle('read-image', async (_e, filePath: string) => {
   try {
+    if (fs.statSync(filePath).size > 25 * 1024 * 1024) return null;
     const data = fs.readFileSync(filePath);
     const ext = extname(filePath).slice(1).toLowerCase();
     const mime = ext === 'jpg' ? 'jpeg' : ext === 'svg' ? 'svg+xml' : ext;
@@ -204,23 +262,27 @@ ipcMain.handle('read-image', async (_e, filePath: string) => {
 });
 
 // ファイル監視 (Chokidar) — 複数フォルダを監視し、変更をデバウンスして通知
-let watcher: chokidar.FSWatcher | null = null;
+let watcher: FSWatcher | null = null;
 let notifyTimer: NodeJS.Timeout | null = null;
 
-ipcMain.on('start-watch', (_e, paths: string[], recursive = false) => {
-  const valid = (paths ?? []).filter((p) => p && fs.existsSync(p));
+// 監視は常に直下1階層のみ。サブフォルダ込みの一覧では、数万ファイルを chokidar で再帰監視すると
+// 初回走査だけでファイル処理の待ち行列を占有し、スキャン結果が数十秒返らなくなるため、
+// 深い階層の変更は renderer 側のウィンドウ復帰時/定期の再スキャンで拾う。
+ipcMain.on('start-watch', (_e, paths: string[]) => {
+  const valid = [...new Set((paths ?? []).filter((p) => p && fs.existsSync(p)))];
   if (valid.length === 0) return;
 
-  if (watcher) watcher.close();
-  watcher = chokidar.watch(valid, {
-    ignored: /(^|[/\\])\../, // dotfiles
+  if (watcher) void watcher.close();
+  watcher = watch(valid, {
+    // dotfiles と node_modules は無視
+    ignored: /(^|[/\\])(\.|node_modules([/\\]|$))/,
     persistent: true,
     ignoreInitial: true,
-    depth: recursive ? undefined : 0,
+    depth: 0,
   });
 
-  watcher.on('all', (_eventName, filePath) => {
-    if (basename(filePath).startsWith('.')) return;
+  watcher.on('all', (_eventName: string, filePath: string) => {
+    if (basename(filePath).startsWith('.') || basename(filePath).startsWith('~$')) return;
     // Debounce: filesystem bursts collapse into one renderer refresh.
     if (notifyTimer) clearTimeout(notifyTimer);
     notifyTimer = setTimeout(() => {

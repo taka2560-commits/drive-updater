@@ -12,7 +12,7 @@ import {
 import type { FileEntry } from '../types';
 
 function api() {
-  return (window as unknown as { localUpdater?: Window['localUpdater'] }).localUpdater;
+  return window.localUpdater;
 }
 
 export interface MenuState {
@@ -53,6 +53,13 @@ export function ContextMenu({
 
   return (
     <div
+      // Keep the whole menu on screen when opened near the right/bottom edge.
+      ref={(el) => {
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.left = `${Math.max(8, Math.min(x, window.innerWidth - r.width - 8))}px`;
+        el.style.top = `${Math.max(8, Math.min(y, window.innerHeight - r.height - 8))}px`;
+      }}
       onMouseDown={(e) => e.stopPropagation()}
       style={{
         position: 'fixed',

@@ -7,6 +7,8 @@ export function ConfirmDialog() {
   const open = pendingDelete !== null;
   const count = pendingDelete?.length ?? 0;
 
+  // Enter is deliberately not intercepted: it presses whichever button has focus
+  // (the primary "move to trash" button by default, "cancel" if the user tabbed to it).
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -14,15 +16,11 @@ export function ConfirmDialog() {
         e.preventDefault();
         e.stopPropagation();
         cancelDelete();
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        confirmDelete();
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, cancelDelete, confirmDelete]);
+  }, [open, cancelDelete]);
 
   if (!open) return null;
 
@@ -86,8 +84,28 @@ export function ConfirmDialog() {
               をゴミ箱に移動します。
             </>
           )}
-          <br />
-          OS のゴミ箱から復元できます。
+          {count > 1 && (
+            <ul
+              style={{
+                margin: '8px 0 0',
+                padding: '6px 10px 6px 26px',
+                background: 'var(--bg-sidebar)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 12,
+                color: 'var(--text-primary)',
+                maxHeight: 110,
+                overflowY: 'auto',
+              }}
+            >
+              {pendingDelete!.map((p) => (
+                <li key={p} style={{ wordBreak: 'break-all' }}>
+                  {p.split(/[\\/]/).pop()}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div style={{ marginTop: 8 }}>OS のゴミ箱から復元できます。</div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

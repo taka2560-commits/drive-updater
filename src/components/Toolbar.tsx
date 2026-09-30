@@ -60,7 +60,10 @@ export function Toolbar({ searchRef }: { searchRef: RefObject<HTMLInputElement |
                 key={v.value}
                 role="tab"
                 aria-selected={active}
-                onClick={() => setViewMode(v.value)}
+                onClick={() => {
+                  setViewMode(v.value);
+                  if (screen !== 'main') setScreen('main');
+                }}
                 style={{
                   height: 32,
                   padding: '0 14px',
@@ -115,7 +118,6 @@ export function Toolbar({ searchRef }: { searchRef: RefObject<HTMLInputElement |
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               padding: '6px 30px 6px 30px',
-              outline: 'none',
             }}
           />
           {searchQuery && (

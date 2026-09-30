@@ -32,7 +32,8 @@ function pad(n: number): string {
  * 'today' = 今日0時 / 'week' = 月曜始まりの今週 / 'month' = 今月1日.
  * Returns 0 for 'all' (no constraint).
  */
-export function periodFilterStart(period: '1d' | '7d' | '14d' | '30d', now = new Date()): number {
+export function periodFilterStart(period: 'all' | '1d' | '7d' | '14d' | '30d', now = new Date()): number {
+  if (period === 'all') return 0;
   const ms = { '1d': DAY, '7d': 7 * DAY, '14d': 14 * DAY, '30d': 30 * DAY }[period];
   return now.getTime() - ms;
 }
@@ -48,8 +49,13 @@ export function dateRangeStart(range: 'all' | 'today' | 'week' | 'month', now = 
   return new Date(now.getFullYear(), now.getMonth(), 1).getTime(); // month
 }
 
-/** Bucket files by recency (今日 / 昨日 / 今週 / 先週 / 今月 / それ以前). */
-export function groupByTime(files: FileEntry[], now = new Date()): FileGroup[] {
+/**
+ * Bucket files by recency (今日 / 昨日 / 今週 / 先週 / 今月 / それ以前).
+ * Files keep the order they arrive in (the caller sorts), so the sort key the
+ * user picked also applies inside each bucket. `ascending` lists the oldest
+ * bucket first, matching an ascending date sort.
+ */
+export function groupByTime(files: FileEntry[], now = new Date(), ascending = false): FileGroup[] {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfYesterday = startOfToday - DAY;
   // 月曜始まりの今週開始
@@ -86,13 +92,36 @@ export function groupByTime(files: FileEntry[], now = new Date()): FileGroup[] {
     older: 'それ以前',
   };
 
-  return (Object.keys(buckets) as GroupKey[])
+  const groups = (Object.keys(buckets) as GroupKey[])
     .filter((k) => buckets[k].length > 0)
     .map((k) => ({
       key: k,
       label: labels[k],
       subLabel: buildSubLabel(k, now),
-      files: buckets[k].sort((a, b) => b.modifiedAt - a.modifiedAt),
+      files: buckets[k],
       totalBytes: buckets[k].reduce((s, f) => s + f.sizeBytes, 0),
     }));
+  return ascending ? groups.reverse() : groups;
+}
+
+/** Keep at most `max` files (in display order) so huge folders don't flood the DOM. */
+export function limitGroups(groups: FileGroup[], max: number): { groups: FileGroup[]; hidden: number } {
+  let left = max;
+  let hidden = 0;
+  const out: FileGroup[] = [];
+  for (const g of groups) {
+    if (left <= 0) {
+      hidden += g.files.length;
+      continue;
+    }
+    if (g.files.length <= left) {
+      out.push(g);
+      left -= g.files.length;
+    } else {
+      out.push({ ...g, files: g.files.slice(0, left) });
+      hidden += g.files.length - left;
+      left = 0;
+    }
+  }
+  return { groups: out, hidden };
 }

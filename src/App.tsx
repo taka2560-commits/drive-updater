@@ -29,9 +29,12 @@ function Shell() {
         target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       const mod = e.metaKey || e.ctrlKey;
 
+      // While the delete dialog is open it owns the keyboard.
+      if (store.pendingDelete) return;
+
       if (e.key === 'Escape') {
         if (store.searchQuery) store.setSearchQuery('');
-        else if (store.selectedPath) store.setSelected(null);
+        else if (store.selectedPaths.size > 0) store.clearSelection();
         (document.activeElement as HTMLElement)?.blur?.();
         return;
       }
@@ -68,15 +71,28 @@ function Shell() {
         return;
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && store.screen === 'main') {
-        const targets =
-          store.selectedPaths.size > 0 ? [...store.selectedPaths]
-            : store.selectedPath ? [store.selectedPath]
-              : [];
+      // Backspace = delete is a macOS habit; on Windows it's too easy to hit by accident.
+      if ((e.key === 'Delete' || (store.isMac && e.key === 'Backspace')) && store.screen === 'main') {
+        const targets = [...store.selectedPaths];
         if (targets.length > 0) {
           e.preventDefault();
           store.requestDelete(targets);
         }
+        return;
+      }
+
+      // Enter opens the selected file (skipped when a button has focus: Enter should press it).
+      if (
+        e.key === 'Enter' &&
+        target.tagName !== 'BUTTON' &&
+        store.screen === 'main' &&
+        store.viewMode === 'list' &&
+        store.selectedFile &&
+        store.selectedPaths.size === 1
+      ) {
+        e.preventDefault();
+        if (store.selectedFile.isDir) store.browseInto(store.selectedFile.path);
+        else window.localUpdater?.openPath(store.selectedFile.path);
         return;
       }
 
@@ -134,11 +150,17 @@ function MainContent() {
     filteredFiles,
     searchQuery,
     setSearchQuery,
-    setTypeFilter,
+    resetFilters,
+    selectedFile,
     rescan,
   } = useStore();
 
   const isEmpty = filteredFiles.length === 0;
+  const emptyVariant = folderFiles.length === 0
+    ? 'folder' as const
+    : searchQuery
+      ? 'search' as const
+      : 'filter' as const;
 
   return (
     <>
@@ -148,13 +170,14 @@ function MainContent() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {isEmpty ? (
             <EmptyState
-              variant={folderFiles.length === 0 ? 'folder' : 'search'}
+              variant={emptyVariant}
               query={searchQuery}
-              onPrimary={folderFiles.length === 0 ? rescan : () => setSearchQuery('')}
-              onSecondary={() => {
-                setSearchQuery('');
-                setTypeFilter('all');
-              }}
+              onPrimary={
+                emptyVariant === 'folder' ? rescan
+                  : emptyVariant === 'search' ? () => setSearchQuery('')
+                    : resetFilters
+              }
+              onSecondary={emptyVariant === 'search' ? resetFilters : undefined}
             />
           ) : viewMode === 'list' ? (
             <FileTable />
@@ -165,7 +188,8 @@ function MainContent() {
           )}
           {viewMode !== 'calendar' && <BulkActionBar />}
         </div>
-        {viewMode === 'list' && <DetailPane />}
+        {/* The detail pane only takes space while a file is selected. */}
+        {viewMode === 'list' && selectedFile && <DetailPane />}
       </div>
     </>
   );

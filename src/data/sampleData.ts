@@ -90,4 +90,4 @@ export const DEFAULT_STARRED: string[] = SEEDS.filter((s) => s.starred).map((s) 
   return `${folder.path}\\${s.name}`;
 });
 
-export const EXCLUDE_KEYWORDS = ['node_modules', '.git', '.DS_Store', 'dist'];
+export const EXCLUDE_KEYWORDS = ['node_modules', '.git', '.DS_Store', 'dist', 'desktop.ini', 'Thumbs.db'];

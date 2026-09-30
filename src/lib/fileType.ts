@@ -51,20 +51,41 @@ const FALLBACK: FileTypeMeta = {
   label: 'ファイル',
 };
 
-export function fileMeta(ext: string): FileTypeMeta {
-  return EXT_META[ext.toLowerCase()] ?? FALLBACK;
-}
-
+// Single source of truth for "what kind of file is this": used by the type
+// chips (filtering) and by the badge (colour/icon) so the two never disagree.
 const FILTER_EXTS: Record<Exclude<FileTypeFilter, 'all' | 'other'>, string[]> = {
-  docs: ['doc', 'docx', 'txt', 'md', 'rtf'],
-  sheets: ['xls', 'xlsx', 'csv'],
+  docs: ['doc', 'docx', 'docm', 'txt', 'md', 'rtf', 'odt', 'pages'],
+  sheets: ['xls', 'xlsx', 'xlsm', 'xlsb', 'csv', 'tsv', 'ods', 'numbers'],
   pdf: ['pdf'],
-  image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'],
-  slides: ['ppt', 'pptx', 'key'],
-  cad: ['dwg', 'dxf'],
+  image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'tif', 'tiff', 'heic', 'ico'],
+  slides: ['ppt', 'pptx', 'pptm', 'key', 'odp'],
+  cad: ['dwg', 'dxf', 'step', 'stp', 'iges', 'igs', 'jww', 'jwc', 'sfc', 'p21', 'ifc', '3dm', 'skp'],
 };
 
 const ALL_KNOWN = new Set(Object.values(FILTER_EXTS).flat());
+
+const KIND_BY_EXT = new Map<string, Exclude<FileTypeFilter, 'all'>>();
+for (const [kind, exts] of Object.entries(FILTER_EXTS)) {
+  for (const e of exts) KIND_BY_EXT.set(e, kind as Exclude<FileTypeFilter, 'all' | 'other'>);
+}
+
+/** Classify an extension into one of the filter kinds ('other' when unknown). */
+export function kindOf(ext: string): Exclude<FileTypeFilter, 'all'> {
+  return KIND_BY_EXT.get(ext.toLowerCase()) ?? 'other';
+}
+
+const KIND_META: Partial<Record<Exclude<FileTypeFilter, 'all'>, FileTypeMeta>> = {
+  docs: { Icon: FileText, color: 'var(--text-brand)', label: 'ドキュメント' },
+  sheets: { Icon: FileSpreadsheet, color: 'var(--text-brand)', label: 'スプレッドシート' },
+  image: { Icon: ImageIcon, color: 'var(--text-brand)', label: '画像' },
+  slides: { Icon: MonitorPlay, color: 'var(--accent)', label: 'プレゼン' },
+  cad: { Icon: Ruler, color: '#5DB8D4', label: 'CAD図面' },
+};
+
+export function fileMeta(ext: string): FileTypeMeta {
+  const e = ext.toLowerCase();
+  return EXT_META[e] ?? KIND_META[kindOf(e)] ?? FALLBACK;
+}
 
 // Extensions whose contents are worth previewing as plain text.
 const TEXT_PREVIEW_EXTS = new Set([

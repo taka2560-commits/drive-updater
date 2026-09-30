@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Monitor, FileText, Download, Folder, Plus, RefreshCw, Calendar } from 'lucide-react';
+import { Monitor, FileText, Download, Folder, Plus, RefreshCw, Calendar, Star } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useStore } from '../storeContext';
 import type { FolderKey, PeriodFilter } from '../types';
@@ -17,6 +17,7 @@ const PERIODS: { id: PeriodFilter; label: string }[] = [
   { id: '7d', label: '1 週間' },
   { id: '14d', label: '2 週間' },
   { id: '30d', label: '1 か月' },
+  { id: 'all', label: 'すべて' },
 ];
 
 const THEME_SWATCHES: { id: ThemeName; color: string; label: string }[] = [
@@ -30,6 +31,8 @@ export function Sidebar() {
     activeFolder,
     setActiveFolder,
     allFiles,
+    starred,
+    folderCounts,
     screen,
     setScreen,
     folders,
@@ -42,7 +45,8 @@ export function Sidebar() {
 
   const standard = folders.filter((f) => f.isStandard);
   const custom = folders.filter((f) => !f.isStandard);
-  const countFor = (key: FolderKey) => allFiles.filter((f) => f.folder === key && !f.isDir).length;
+  const countFor = (key: FolderKey) => folderCounts[key] ?? 0;
+  const starredCount = allFiles.filter((f) => !f.isDir && starred.has(f.path)).length;
 
   const goFolder = (key: FolderKey) => {
     setActiveFolder(key);
@@ -52,7 +56,7 @@ export function Sidebar() {
   const isFolderActive = (key: FolderKey) => screen === 'main' && activeFolder === key;
 
   const handleAdd = async () => {
-    const api = (window as unknown as { localUpdater?: { selectFolder: () => Promise<{ name: string; path: string } | null> } }).localUpdater;
+    const api = window.localUpdater;
     if (api?.selectFolder) {
       const result = await api.selectFolder();
       if (result) addCustomFolder(result.name, result.path);
@@ -156,6 +160,16 @@ export function Sidebar() {
               onClick={() => goFolder(f.key)}
             />
           ))}
+        </div>
+
+        <div style={{ marginTop: 10 }}>
+          <SidebarItem
+            Icon={Star}
+            label="スター付き"
+            count={starredCount}
+            selected={screen === 'starred'}
+            onClick={() => setScreen('starred')}
+          />
         </div>
 
         {/* Section: 表示期間 */}

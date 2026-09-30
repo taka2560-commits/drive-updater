@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
 import { ContextMenu, type MenuState } from './ContextMenu';
@@ -18,7 +19,6 @@ function heat(count: number): number {
 
 export function CalendarView() {
   const {
-    folderFiles,
     filteredFiles,
     selectOne,
     selectedPaths,
@@ -26,6 +26,7 @@ export function CalendarView() {
     toggleStar,
     browseInto,
     setEditingPath,
+    setViewMode,
     requestDelete,
   } = useStore();
 
@@ -37,12 +38,32 @@ export function CalendarView() {
     setMenu({ x: e.clientX, y: e.clientY, file });
   };
 
-  const summary = useMemo(() => buildSummary(folderFiles), [folderFiles]);
+  // Summary chips follow the same filters as the grid, so the numbers agree.
+  const summary = useMemo(() => buildSummary(filteredFiles), [filteredFiles]);
+
+  // The month being shown (defaults to the current one); prev/next buttons page through history.
+  const [focusDay, setFocusDay] = useState(() => new Date().getDate());
+  const [cursor, setCursor] = useState(() => {
+    const n = new Date();
+    return { year: n.getFullYear(), month: n.getMonth() };
+  });
+  const shiftMonth = (delta: number) => {
+    setCursor((c) => {
+      const d = new Date(c.year, c.month + delta, 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
+    setFocusDay(1);
+  };
+  const thisMonth = () => {
+    const n = new Date();
+    setCursor({ year: n.getFullYear(), month: n.getMonth() });
+    setFocusDay(n.getDate());
+  };
 
   const { year, month, todayDate, startWeekday, daysInMonth, allFiles, counts } = useMemo(() => {
     const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
+    const y = cursor.year;
+    const m = cursor.month;
     const firstDay = new Date(y, m, 1);
     const nonDirs = filteredFiles.filter((f) => !f.isDir);
     const cmap = new Map<number, number>();
@@ -53,16 +74,17 @@ export function CalendarView() {
         cmap.set(key, (cmap.get(key) || 0) + 1);
       }
     }
+    const isCurrent = now.getFullYear() === y && now.getMonth() === m;
     return {
       year: y,
       month: m,
-      todayDate: now.getDate(),
+      todayDate: isCurrent ? now.getDate() : -1,
       startWeekday: firstDay.getDay(),
       daysInMonth: new Date(y, m + 1, 0).getDate(),
       allFiles: nonDirs,
       counts: cmap,
     };
-  }, [filteredFiles]);
+  }, [filteredFiles, cursor]);
 
   const cells: { blank?: boolean; day?: number; count: number; level: number; isToday: boolean }[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push({ blank: true, count: 0, level: 0, isToday: false });
@@ -70,8 +92,6 @@ export function CalendarView() {
     const c = counts.get(d) || 0;
     cells.push({ day: d, count: c, level: heat(c), isToday: d === todayDate });
   }
-
-  const [focusDay, setFocusDay] = useState(todayDate);
 
   const focusFiles = useMemo(
     () =>
@@ -100,9 +120,33 @@ export function CalendarView() {
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         {/* Title + legend */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', margin: 0, color: 'var(--text-primary)' }}>
-            {year} 年 {month + 1} 月
-          </h2>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <MonthButton label="前の月" onClick={() => shiftMonth(-1)}>
+              <ChevronLeft size={16} />
+            </MonthButton>
+            <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', margin: 0, color: 'var(--text-primary)', minWidth: 118, textAlign: 'center' }}>
+              {year} 年 {month + 1} 月
+            </h2>
+            <MonthButton label="次の月" onClick={() => shiftMonth(1)}>
+              <ChevronRight size={16} />
+            </MonthButton>
+            <button
+              onClick={thisMonth}
+              style={{
+                marginLeft: 6,
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-pill)',
+                border: '1px solid var(--border)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                fontSize: 11,
+                fontFamily: 'var(--font-sans)',
+                cursor: 'pointer',
+              }}
+            >
+              今月
+            </button>
+          </div>
           <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
             活動量を色の濃さで表示
           </span>
@@ -254,11 +298,40 @@ export function CalendarView() {
           onClose={() => setMenu(null)}
           onOpenFolder={() => browseInto(menu.file.path)}
           onToggleStar={() => toggleStar(menu.file.path)}
-          onRename={() => setEditingPath(menu.file.path)}
+          // Inline rename lives in the list view, so switch there first.
+          onRename={() => {
+            setViewMode('list');
+            setEditingPath(menu.file.path);
+          }}
           onDelete={() => requestDelete([menu.file.path])}
         />
       )}
     </div>
+  );
+}
+
+function MonthButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      style={{
+        width: 28,
+        height: 28,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--border)',
+        background: 'transparent',
+        color: 'var(--text-secondary)',
+        cursor: 'pointer',
+        padding: 0,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -267,6 +340,8 @@ function SidePanelRow({ file, onSelect, onContextMenu }: { file: FileEntry; onSe
   return (
     <div
       onClick={onSelect}
+      onDoubleClick={() => window.localUpdater?.openPath(file.path)}
+      title="ダブルクリックで開く"
       onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

@@ -543,7 +543,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!(f.isDir || matchesType(f.ext, typeFilter))) return false;
       if (filterByDate && toDateKey(f.modifiedAt) !== filterByDate) return false;
       if (!f.isDir) {
-        if (f.modifiedAt < periodStart) return false;
+        if (!browsePath && f.modifiedAt < periodStart) return false;
         if (rangeStart && f.modifiedAt < rangeStart) return false;
         if (sizeMin && f.sizeBytes < sizeMin) return false;
       }
@@ -561,7 +561,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return cmp * dir;
     });
     return out;
-  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate, dateRange, sizeFilter, periodFilter]);
+  }, [searchMatched, typeFilter, sortKey, sortDir, filterByDate, dateRange, sizeFilter, periodFilter, browsePath]);
 
   const selectedFile = useMemo(
     () => allFiles.find((f) => f.path === selectedPath) ?? null,

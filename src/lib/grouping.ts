@@ -32,7 +32,8 @@ function pad(n: number): string {
  * 'today' = 今日0時 / 'week' = 月曜始まりの今週 / 'month' = 今月1日.
  * Returns 0 for 'all' (no constraint).
  */
-export function periodFilterStart(period: '1d' | '7d' | '14d' | '30d', now = new Date()): number {
+export function periodFilterStart(period: 'all' | '1d' | '7d' | '14d' | '30d', now = new Date()): number {
+  if (period === 'all') return 0;
   const ms = { '1d': DAY, '7d': 7 * DAY, '14d': 14 * DAY, '30d': 30 * DAY }[period];
   return now.getTime() - ms;
 }

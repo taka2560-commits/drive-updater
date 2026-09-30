@@ -17,6 +17,7 @@ const PERIODS: { id: PeriodFilter; label: string }[] = [
   { id: '7d', label: '1 週間' },
   { id: '14d', label: '2 週間' },
   { id: '30d', label: '1 か月' },
+  { id: 'all', label: 'すべて' },
 ];
 
 const THEME_SWATCHES: { id: ThemeName; color: string; label: string }[] = [

@@ -135,10 +135,26 @@ function MainContent() {
     searchQuery,
     setSearchQuery,
     setTypeFilter,
+    setSizeFilter,
+    setDateRange,
+    setFilterByDate,
     rescan,
   } = useStore();
 
   const isEmpty = filteredFiles.length === 0;
+  const emptyVariant = folderFiles.length === 0
+    ? 'folder' as const
+    : searchQuery
+      ? 'search' as const
+      : 'filter' as const;
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setSizeFilter('all');
+    setDateRange('all');
+    setFilterByDate(null);
+  };
 
   return (
     <>
@@ -148,13 +164,14 @@ function MainContent() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {isEmpty ? (
             <EmptyState
-              variant={folderFiles.length === 0 ? 'folder' : 'search'}
+              variant={emptyVariant}
               query={searchQuery}
-              onPrimary={folderFiles.length === 0 ? rescan : () => setSearchQuery('')}
-              onSecondary={() => {
-                setSearchQuery('');
-                setTypeFilter('all');
-              }}
+              onPrimary={
+                emptyVariant === 'folder' ? rescan
+                  : emptyVariant === 'search' ? () => setSearchQuery('')
+                    : resetFilters
+              }
+              onSecondary={emptyVariant === 'search' ? resetFilters : undefined}
             />
           ) : viewMode === 'list' ? (
             <FileTable />

@@ -254,8 +254,7 @@ function Detail({ file }: { file: FileEntry }) {
           Icon={file.isDir ? FolderOpen : ExternalLink}
           style={{ width: '100%' }}
           onClick={() => {
-            const api = (window as unknown as { localUpdater?: { openPath: (p: string) => void } }).localUpdater;
-            api?.openPath(file.path);
+            window.localUpdater?.openPath(file.path);
           }}
         >
           {file.isDir ? 'フォルダを開く' : 'ファイルを開く'}
@@ -265,8 +264,7 @@ function Detail({ file }: { file: FileEntry }) {
             <Button
               variant="secondary" size="md" Icon={FolderOpen} style={{ flex: 1 }}
               onClick={() => {
-                const api = (window as unknown as { localUpdater?: { showInFolder: (p: string) => void } }).localUpdater;
-                api?.showInFolder(file.path);
+                window.localUpdater?.showInFolder(file.path);
               }}
             >
               保存場所

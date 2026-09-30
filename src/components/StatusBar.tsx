@@ -4,7 +4,7 @@ import { useStore } from '../storeContext';
 import { formatBytes } from '../lib/format';
 
 export function StatusBar() {
-  const { filteredFiles, folders } = useStore();
+  const { filteredFiles, folders, lastScanAt, notice } = useStore();
 
   const fileCount = filteredFiles.filter((f) => !f.isDir).length;
   const totalBytes = useMemo(
@@ -12,10 +12,10 @@ export function StatusBar() {
     [filteredFiles],
   );
   const folderCount = folders.length;
-  const scanTime = useMemo(
-    () => new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-    [],
-  );
+  const scanTime = new Date(lastScanAt).toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <div
@@ -38,10 +38,26 @@ export function StatusBar() {
         <Folder size={11} />
         <span>監視中: {folderCount} フォルダ</span>
       </div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 12 }}>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {fileCount} 件 · {formatBytes(totalBytes)}
-        </span>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 12, minWidth: 0 }}>
+        {notice ? (
+          <span
+            role="status"
+            style={{
+              color: 'var(--danger)',
+              fontWeight: 600,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={notice}
+          >
+            {notice}
+          </span>
+        ) : (
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {fileCount} 件 · {formatBytes(totalBytes)}
+          </span>
+        )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <span>最終スキャン: {scanTime}</span>

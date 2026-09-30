@@ -24,10 +24,18 @@ export function formatRelativeTime(ts: number, now = Date.now()): string {
 
   const startOfToday = new Date(now).setHours(0, 0, 0, 0);
   const dayDiff = Math.floor((startOfToday - new Date(ts).setHours(0, 0, 0, 0)) / DAY);
+  if (dayDiff <= 0) return `${Math.floor(diff / 3_600_000)}時間前`;
   if (dayDiff === 1) return '昨日';
-  if (dayDiff < 7) return `${dayDiff}日前`;
-  if (dayDiff < 14) return '先週';
-  return formatMonthDay(ts);
+  if (dayDiff < 30) return `${dayDiff}日前`;
+  // Older than a month: include the year once it differs from the current one.
+  const sameYear = new Date(ts).getFullYear() === new Date(now).getFullYear();
+  return sameYear ? formatMonthDay(ts) : formatDate(ts);
+}
+
+/** YYYY-MM-DD in local time. */
+export function formatDate(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function formatMonthDay(ts: number): string {

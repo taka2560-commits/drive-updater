@@ -28,8 +28,8 @@ export function EmptyState({ variant, query, onPrimary, onSecondary }: EmptyStat
     filter: {
       Icon: SlidersHorizontal,
       title: 'フィルタ条件に一致するファイルがありません',
-      sub: '種別・期間・サイズのフィルタを見直してください',
-      primary: 'フィルタをリセット',
+      sub: '種別・期間・サイズの絞り込みで、すべてのファイルが除外されています',
+      primary: 'すべて表示（絞り込みを解除）',
       secondary: undefined as string | undefined,
     },
     starred: {

@@ -13,7 +13,7 @@ type BadgeVariant =
 
 const BADGE_VARIANTS: Record<BadgeVariant, CSSProperties> = {
   accent: { background: 'var(--accent)', color: 'var(--bg-app)' },
-  primary: { background: 'var(--brand)', color: 'var(--text-primary)' },
+  primary: { background: 'var(--brand)', color: 'var(--text-on-brand)' },
   muted: { background: 'var(--border)', color: 'var(--text-secondary)' },
   success: { background: 'var(--success-bg)', color: 'var(--success-text)' },
   danger: { background: 'var(--danger-bg)', color: 'var(--danger-text)' },
@@ -95,14 +95,14 @@ export function Button({
       ? {
           background: hov ? 'var(--accent-hover)' : 'var(--brand)',
           border: 'none',
-          color: 'var(--text-primary)',
+          color: 'var(--text-on-brand)',
           fontWeight: 'var(--font-weight-bold)',
         }
       : variant === 'secondary'
         ? {
             background: hov ? 'var(--brand)' : 'transparent',
             border: '1px solid var(--brand)',
-            color: hov ? 'var(--text-primary)' : 'var(--text-brand)',
+            color: hov ? 'var(--text-on-brand)' : 'var(--text-brand)',
           }
         : {
             background: hov ? 'var(--surface-hover)' : 'transparent',

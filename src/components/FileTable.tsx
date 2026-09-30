@@ -3,9 +3,15 @@ import { Star, Folder, ChevronRight } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
 import { ContextMenu, type MenuState } from './ContextMenu';
-import { groupByTime } from '../lib/grouping';
+import { FilteredOutHint } from './FilteredOutHint';
+import { groupByTime, limitGroups } from '../lib/grouping';
 import { formatRelativeTime, isRecent } from '../lib/format';
+import { locationLabel } from '../lib/paths';
 import type { FileEntry } from '../types';
+
+// Rendering tens of thousands of rows makes the list sluggish; show the newest
+// N (in display order) and point the user at the filters for the rest.
+const MAX_ROWS = 500;
 
 function formatSizeNum(bytes: number): string {
   if (bytes < 1024) return `${bytes}`;
@@ -42,13 +48,28 @@ export function FileTable() {
     setEditingPath,
     renameFile,
     requestDelete,
+    sortKey,
+    sortDir,
+    folderFiles,
   } = useStore();
 
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   const dirs = useMemo(() => filteredFiles.filter((f) => f.isDir), [filteredFiles]);
   const files = useMemo(() => filteredFiles.filter((f) => !f.isDir), [filteredFiles]);
-  const groups = useMemo(() => groupByTime(files), [files]);
+  const { groups, hidden } = useMemo(
+    () =>
+      limitGroups(
+        groupByTime(files, new Date(), sortKey === 'modified' && sortDir === 'asc'),
+        MAX_ROWS,
+      ),
+    [files, sortKey, sortDir],
+  );
+
+  const whereOf = (f: FileEntry) => {
+    const fd = folders.find((x) => x.key === f.folder);
+    return fd ? locationLabel(fd.label, fd.path, f.path) : '';
+  };
 
   const onRowClick = (e: React.MouseEvent, file: FileEntry) => {
     if (e.metaKey || e.ctrlKey) toggleInSelection(file.path);
@@ -123,13 +144,32 @@ export function FileTable() {
                 onSelect={(e) => onRowClick(e, f)}
                 onToggleStar={() => toggleStar(f.path)}
                 onContextMenu={(e) => openMenu(e, f)}
-                folderLabel={folders.find((fd) => fd.key === f.folder)?.label ?? ''}
+                folderLabel={whereOf(f)}
                 {...editProps(f)}
               />
             ))}
           </div>
         </section>
       ))}
+
+      {files.length === 0 && dirs.length > 0 && folderFiles.some((f) => !f.isDir) && <FilteredOutHint />}
+
+      {hidden > 0 && (
+        <div
+          style={{
+            margin: '16px 12px 0',
+            padding: '10px 12px',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            textAlign: 'center',
+          }}
+        >
+          ほか {hidden.toLocaleString('ja-JP')} 件は表示していません。期間・種別・検索で絞り込むと表示できます。
+        </div>
+      )}
 
       {contextMenuEl}
     </div>
@@ -203,12 +243,14 @@ function FileRow({
   return (
     <div
       onClick={onSelect}
+      onDoubleClick={editing ? undefined : () => window.localUpdater?.openPath(file.path)}
       onContextMenu={onContextMenu}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto auto auto',
+        // The name keeps a readable minimum; the location column gives way first.
+        gridTemplateColumns: 'auto minmax(140px, 1fr) minmax(0, 170px) auto auto',
         alignItems: 'center',
         gap: 12,
         height: 36,
@@ -264,7 +306,6 @@ function FileRow({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          maxWidth: 160,
         }}
         title={folderLabel}
       >

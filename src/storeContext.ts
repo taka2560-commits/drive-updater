@@ -39,10 +39,13 @@ export interface Store {
   browsePath: string | null;
   browseInto: (path: string) => void;
   browseUp: () => void;
+  // Jump to a file from anywhere: switches folder/sub-folder, clears filters, selects it.
+  revealFile: (path: string) => void;
 
   allFiles: FileEntry[];
   folderFiles: FileEntry[];
-  filteredFiles: FileEntry[];
+  filteredFiles: FileEntry[]; // display order: folders first, then time buckets
+  folderCounts: Record<string, number>; // sidebar badges (period + depth aware)
 
   searchQuery: string;
   setSearchQuery: (q: string) => void;
@@ -56,6 +59,8 @@ export interface Store {
   // Period filter (sidebar: how far back to show files)
   periodFilter: PeriodFilter;
   setPeriodFilter: (p: PeriodFilter) => void;
+  // Clears search, type, size, date and period limits in one go.
+  resetFilters: () => void;
 
   // Date filter (heatmap cell / activity bar click). null = no date filter.
   filterByDate: string | null;
@@ -101,7 +106,14 @@ export interface Store {
   removeExclude: (kw: string) => void;
 
   isScanning: boolean;
+  lastScanAt: number;
   rescan: () => void;
+
+  // Transient message shown in the status bar (errors, partial failures).
+  notice: string | null;
+  notify: (msg: string) => void;
+
+  isMac: boolean;
 
   countByType: Record<FileTypeFilter, number>;
 }

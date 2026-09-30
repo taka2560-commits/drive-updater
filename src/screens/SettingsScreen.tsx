@@ -267,7 +267,7 @@ function FoldersTab() {
   const custom = folders.filter((f) => !f.isStandard);
 
   const handleAdd = async () => {
-    const api = (window as unknown as { localUpdater?: { selectFolder: () => Promise<{ name: string; path: string } | null> } }).localUpdater;
+    const api = window.localUpdater;
     if (api?.selectFolder) {
       const result = await api.selectFolder();
       if (result) addCustomFolder(result.name, result.path);
@@ -324,14 +324,21 @@ function AboutTab() {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>LocalUpdater</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>バージョン 1.0.0</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>バージョン {__APP_VERSION__}</div>
           </div>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, margin: '0 0 16px' }}>
           ローカルの特定フォルダをスキャンして「最近更新されたファイル」を一覧表示する
           デスクトップアプリ。Electron + React 19 で動作します。
         </p>
-        <Button variant="secondary" size="md" Icon={ExternalLink}>GitHub で見る</Button>
+        <Button
+          variant="secondary"
+          size="md"
+          Icon={ExternalLink}
+          onClick={() => window.localUpdater?.openExternal('https://github.com/taka2560-commits/drive-updater')}
+        >
+          GitHub で見る
+        </Button>
       </div>
     </>
   );

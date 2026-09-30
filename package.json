@@ -1,7 +1,9 @@
 {
   "name": "drive-updater",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.1.0",
+  "description": "ローカルの最近更新されたファイルを一覧表示するデスクトップアプリ",
+  "author": "taka2560-commits",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -10,16 +12,11 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
-  "dependencies": {
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/noto-sans-jp": "^5.2.9",
-    "lucide-react": "^1.21.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -32,7 +29,10 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "lucide-react": "^1.21.0",
     "postcss": "^8.5.15",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",

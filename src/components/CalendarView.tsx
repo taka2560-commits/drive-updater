@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
 import { ContextMenu, type MenuState } from './ContextMenu';
+import { menuTargetsFor } from '../lib/selection';
 import { formatBytes, formatActivityLabel } from '../lib/format';
 import { buildSummary } from '../lib/heatmap';
 import type { FileEntry } from '../types';
@@ -294,6 +295,7 @@ export function CalendarView() {
       {menu && (
         <ContextMenu
           state={menu}
+          count={menuTargetsFor(menu.file.path, selectedPaths).length}
           starred={isStarred(menu.file.path)}
           onClose={() => setMenu(null)}
           onOpenFolder={() => browseInto(menu.file.path)}
@@ -303,7 +305,7 @@ export function CalendarView() {
             setViewMode('list');
             setEditingPath(menu.file.path);
           }}
-          onDelete={() => requestDelete([menu.file.path])}
+          onDelete={() => requestDelete(menuTargetsFor(menu.file.path, selectedPaths))}
         />
       )}
     </div>

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Star, Folder, ChevronRight } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
 import { ContextMenu, type MenuState } from './ContextMenu';
+import { menuTargetsFor } from '../lib/selection';
 import { FilteredOutHint } from './FilteredOutHint';
 import { groupByTime, limitGroups } from '../lib/grouping';
 import { formatRelativeTime, isRecent } from '../lib/format';
@@ -41,7 +42,6 @@ export function FileTable() {
     selectRange,
     isStarred,
     toggleStar,
-    isScanning,
     folders,
     browseInto,
     editingPath,
@@ -83,19 +83,17 @@ export function FileTable() {
     setMenu({ x: e.clientX, y: e.clientY, file });
   };
 
-  if (isScanning && filteredFiles.length === 0) {
-    return <Skeleton />;
-  }
-
+  const menuTargets = menu ? menuTargetsFor(menu.file.path, selectedPaths) : [];
   const contextMenuEl = menu && (
     <ContextMenu
       state={menu}
+      count={menuTargets.length}
       starred={isStarred(menu.file.path)}
       onClose={() => setMenu(null)}
       onOpenFolder={() => browseInto(menu.file.path)}
       onToggleStar={() => toggleStar(menu.file.path)}
       onRename={() => setEditingPath(menu.file.path)}
-      onDelete={() => requestDelete([menu.file.path])}
+      onDelete={() => requestDelete(menuTargets)}
     />
   );
 
@@ -238,10 +236,12 @@ function FileRow({
   onRenameCancel: () => void;
 }) {
   const [hover, setHover] = useState(false);
+  const rowRef = useScrollIntoViewWhen(selected);
   const recent = isRecent(file.modifiedAt);
 
   return (
     <div
+      ref={rowRef}
       onClick={onSelect}
       onDoubleClick={editing ? undefined : () => window.localUpdater?.openPath(file.path)}
       onContextMenu={onContextMenu}
@@ -374,9 +374,11 @@ function FolderRow({
   onRenameCancel: () => void;
 }) {
   const [hover, setHover] = useState(false);
+  const rowRef = useScrollIntoViewWhen(selected);
 
   return (
     <div
+      ref={rowRef}
       onClick={onSelect}
       onDoubleClick={editing ? undefined : onOpen}
       onContextMenu={onContextMenu}
@@ -436,6 +438,13 @@ function RenameInput({
   onCancel: () => void;
 }) {
   const [value, setValue] = useState(initial);
+  // Enter commits and unmounts the input, which can also fire blur: commit only once.
+  const done = useRef(false);
+  const commit = () => {
+    if (done.current) return;
+    done.current = true;
+    onCommit(value);
+  };
   return (
     <input
       autoFocus
@@ -449,10 +458,15 @@ function RenameInput({
       }}
       onKeyDown={(e) => {
         e.stopPropagation();
-        if (e.key === 'Enter') onCommit(value);
-        else if (e.key === 'Escape') onCancel();
+        // Enter/Esc while the IME is composing confirm or cancel the conversion, not the rename.
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') commit();
+        else if (e.key === 'Escape') {
+          done.current = true;
+          onCancel();
+        }
       }}
-      onBlur={() => onCommit(value)}
+      onBlur={commit}
       style={{
         flex: 1,
         minWidth: 0,
@@ -470,7 +484,16 @@ function RenameInput({
 }
 
 
-function Skeleton() {
+/** Keeps a row visible when it becomes selected (e.g. moving with the arrow keys). */
+function useScrollIntoViewWhen(selected: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: 'nearest' });
+  }, [selected]);
+  return ref;
+}
+
+export function Skeleton() {
   return (
     <div style={{ flex: 1, overflow: 'hidden', padding: '8px 16px' }}>
       {Array.from({ length: 8 }).map((_, i) => (

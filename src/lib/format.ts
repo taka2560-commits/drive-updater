@@ -66,8 +66,9 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 /** Activity tooltip label: 6月15日 (土) — 9件 */
 export function formatActivityLabel(dateKey: string, count: number): string {
-  const [, m, d] = dateKey.split('-').map(Number);
-  const wd = WEEKDAYS[new Date(dateKey).getDay()];
+  const [y, m, d] = dateKey.split('-').map(Number);
+  // new Date('YYYY-MM-DD') would parse as UTC midnight; build a local date instead.
+  const wd = WEEKDAYS[new Date(y, m - 1, d).getDay()];
   return `${m}月${d}日 (${wd}) — ${count}件`;
 }
 

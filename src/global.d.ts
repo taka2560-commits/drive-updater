@@ -13,6 +13,7 @@ interface LocalUpdaterAPI {
   ) => Promise<import('./types').FileEntry[]>;
   readImage: (path: string) => Promise<string | null>;
   readText: (path: string) => Promise<string | null>;
+  statPaths: (paths: string[]) => Promise<import('./types').FileEntry[]>;
   trashItem: (path: string) => Promise<boolean>;
   renameItem: (oldPath: string, newName: string) => Promise<string | null>;
   startWatch: (paths: string[], recursive: boolean) => void;

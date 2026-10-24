@@ -3,6 +3,7 @@ import { Star, Folder } from 'lucide-react';
 import { useStore } from '../storeContext';
 import { FileTypeBadge } from './FileTypeBadge';
 import { ContextMenu, type MenuState } from './ContextMenu';
+import { menuTargetsFor } from '../lib/selection';
 import { FilteredOutHint } from './FilteredOutHint';
 import { groupByTime, limitGroups } from '../lib/grouping';
 import { formatBytes, formatRelativeTime, isRecent } from '../lib/format';
@@ -128,6 +129,7 @@ export function FileGroupList() {
       {menu && (
         <ContextMenu
           state={menu}
+          count={menuTargetsFor(menu.file.path, selectedPaths).length}
           starred={isStarred(menu.file.path)}
           onClose={() => setMenu(null)}
           onOpenFolder={() => browseInto(menu.file.path)}
@@ -137,7 +139,7 @@ export function FileGroupList() {
             setViewMode('list');
             setEditingPath(menu.file.path);
           }}
-          onDelete={() => requestDelete([menu.file.path])}
+          onDelete={() => requestDelete(menuTargetsFor(menu.file.path, selectedPaths))}
         />
       )}
     </div>

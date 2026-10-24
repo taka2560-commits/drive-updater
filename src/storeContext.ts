@@ -88,6 +88,8 @@ export interface Store {
   clearSelection: () => void;
 
   starred: Set<string>;
+  /** Starred files (not folders), including ones in sub-folders not opened yet. */
+  starredFiles: FileEntry[];
   isStarred: (path: string) => boolean;
   toggleStar: (path: string) => void;
   starMany: (paths: string[], on: boolean) => void;

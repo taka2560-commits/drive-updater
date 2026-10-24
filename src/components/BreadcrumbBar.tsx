@@ -1,5 +1,6 @@
 import { ChevronRight, Star } from 'lucide-react';
 import { useStore } from '../storeContext';
+import { relativeTo, trimTrailingSep } from '../lib/paths';
 
 export function BreadcrumbBar() {
   const { browsePath, activeFolder, folders, setActiveFolder, browseInto } = useStore();
@@ -9,11 +10,11 @@ export function BreadcrumbBar() {
   const folder = folders.find((f) => f.key === activeFolder);
   const rootPath = folder?.path ?? '';
   const sep = browsePath.includes('\\') ? '\\' : '/';
+  // trimTrailingSep keeps a drive root such as "D:\" from producing a doubled separator.
+  const base = trimTrailingSep(rootPath);
 
-  const relative = browsePath.startsWith(rootPath + sep)
-    ? browsePath.slice(rootPath.length + sep.length)
-    : browsePath;
-  const segments = relative.split(sep).filter(Boolean);
+  const relative = relativeTo(rootPath, browsePath) ?? browsePath;
+  const segments = relative.split(/[\\/]/).filter(Boolean);
 
   return (
     <div
@@ -41,7 +42,7 @@ export function BreadcrumbBar() {
       </button>
 
       {segments.map((seg, i) => {
-        const segPath = rootPath + sep + segments.slice(0, i + 1).join(sep);
+        const segPath = base + sep + segments.slice(0, i + 1).join(sep);
         const isLast = i === segments.length - 1;
         return (
           <span key={segPath} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>

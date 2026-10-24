@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+
 export function Window({
   title,
   children,
@@ -31,11 +33,14 @@ export function Window({
           WebkitAppRegion: 'drag',
         }}
       >
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Dot color="#E15453" />
-          <Dot color="#E5A43A" />
-          <Dot color="#4DBC4A" />
-        </div>
+        {/* Decorative window dots for the Mac look; Windows already shows its real caption buttons. */}
+        {IS_MAC && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Dot color="#E15453" />
+            <Dot color="#E5A43A" />
+            <Dot color="#4DBC4A" />
+          </div>
+        )}
         <div
           style={{
             flex: 1,
@@ -51,7 +56,7 @@ export function Window({
         >
           {title}
         </div>
-        <div style={{ width: 48 }} />
+        {IS_MAC && <div style={{ width: 48 }} />}
       </div>
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {children}

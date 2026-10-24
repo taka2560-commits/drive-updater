@@ -6,6 +6,8 @@ import { fileMeta, matchesType, isTextPreviewable } from '../lib/fileType';
 import { formatBytes, formatDateTime, formatRelativeTime } from '../lib/format';
 import type { FileEntry } from '../types';
 
+const NO_PREVIEW_IMAGE_EXTS = new Set(['tif', 'tiff', 'heic']);
+
 export function DetailPane() {
   const { selectedFile, setSelected, isStarred, toggleStar } = useStore();
 
@@ -98,13 +100,15 @@ function Detail({ file }: { file: FileEntry }) {
   const { requestDelete } = useStore();
   const meta = fileMeta(file.ext);
   const isImage = matchesType(file.ext, 'image');
+  // TIFF/HEIC are images but Chromium can't draw them; show the icon instead of a broken image.
+  const canPreviewImage = isImage && !NO_PREVIEW_IMAGE_EXTS.has(file.ext.toLowerCase());
   const isText = !file.isDir && isTextPreviewable(file.ext);
 
   const [preview, setPreview] = useState<{ path: string; data: string } | null>(null);
   const [dimensions, setDimensions] = useState<{ path: string; value: string } | null>(null);
   const [text, setText] = useState<{ path: string; data: string } | null>(null);
   useEffect(() => {
-    if (!isImage || file.isDir) return;
+    if (!canPreviewImage || file.isDir) return;
     const api = window.localUpdater;
     if (!api?.readImage) return;
     let cancelled = false;
@@ -114,7 +118,7 @@ function Detail({ file }: { file: FileEntry }) {
     return () => {
       cancelled = true;
     };
-  }, [file.path, isImage, file.isDir]);
+  }, [file.path, canPreviewImage, file.isDir]);
 
   useEffect(() => {
     if (!isText) return;
@@ -155,6 +159,7 @@ function Detail({ file }: { file: FileEntry }) {
           <img
             src={previewSrc}
             alt={file.name}
+            onError={() => setPreview(null)}
             onLoad={(e) => {
               const img = e.currentTarget;
               setDimensions({ path: file.path, value: `${img.naturalWidth} × ${img.naturalHeight}` });

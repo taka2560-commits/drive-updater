@@ -25,6 +25,10 @@ function createWindow() {
     },
   });
 
+  // ファイルをドロップしたときなどに、アプリ画面が別ページへ置き換わらないようにする
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
@@ -32,7 +36,17 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+// 二重起動を防ぎ、2つ目の起動では既存ウィンドウを前面に出す
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  });
+  app.whenReady().then(createWindow);
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -144,6 +158,32 @@ interface FileEntry {
   createdAt: number;
   isDir: boolean;
 }
+
+// 指定パス（スター付きなど）の現在の情報を返す。存在しないものは含めない
+ipcMain.handle('stat-paths', async (_e, paths: string[]) => {
+  const out = await Promise.all(
+    (Array.isArray(paths) ? paths : []).map(async (p): Promise<FileEntry | null> => {
+      try {
+        const stat = await fs.promises.stat(p);
+        const name = basename(p);
+        return {
+          path: p,
+          name,
+          ext: stat.isDirectory() ? '' : extname(name).slice(1).toLowerCase(),
+          folder: '',
+          sizeBytes: stat.isDirectory() ? 0 : stat.size,
+          modifiedAt: stat.mtime.getTime(),
+          accessedAt: stat.atime.getTime(),
+          createdAt: stat.birthtime.getTime(),
+          isDir: stat.isDirectory(),
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return out.filter((f): f is FileEntry => f !== null);
+});
 
 // 同時に発行するファイル操作の上限（大きなフォルダでもメインプロセスを止めず、ハンドルも使い切らない）
 function createLimiter(max: number) {
@@ -280,6 +320,10 @@ ipcMain.on('start-watch', (_e, paths: string[]) => {
     ignoreInitial: true,
     depth: 0,
   });
+
+  // EPERM/EACCES（監視中フォルダの削除など）は 'error' として届く。リスナーが無いと
+  // メインプロセスが未捕捉例外で落ちるため、握りつぶして監視を続ける。
+  watcher.on('error', () => {});
 
   watcher.on('all', (_eventName: string, filePath: string) => {
     if (basename(filePath).startsWith('.') || basename(filePath).startsWith('~$')) return;

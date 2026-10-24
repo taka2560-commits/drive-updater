@@ -22,7 +22,7 @@ export function FilteredOutHint() {
         borderRadius: 'var(--radius-md)',
       }}
     >
-      <span style={{ flex: 1 }}>期間・種別・サイズの絞り込みで、ファイルがすべて除外されています。</span>
+      <span style={{ flex: 1 }}>表示期間・種別の絞り込みで、ファイルがすべて除外されています。</span>
       <button
         onClick={resetFilters}
         style={{

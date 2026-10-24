@@ -8,11 +8,21 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
   version: string;
 };
 
+// Production builds get a strict CSP. Not in dev: Vite's HMR relies on inline scripts.
+const CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
+
 // https://vite.dev/config/
 export default defineConfig({
   // Single source of truth for the version shown in the About tab.
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [
+    {
+      name: 'csp-meta',
+      apply: 'build',
+      transformIndexHtml: (html) =>
+        html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`),
+    },
     react(),
     electron([
       {

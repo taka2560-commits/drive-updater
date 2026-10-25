@@ -23,6 +23,7 @@ export interface MenuState {
 
 export function ContextMenu({
   state,
+  count = 1,
   starred,
   onClose,
   onOpenFolder,
@@ -31,6 +32,8 @@ export function ContextMenu({
   onDelete,
 }: {
   state: MenuState;
+  /** Number of items the delete acts on (the selection, when the clicked item is in it). */
+  count?: number;
   starred: boolean;
   onClose: () => void;
   onOpenFolder: () => void;
@@ -101,8 +104,15 @@ export function ContextMenu({
       )}
       <MenuItem Icon={Copy} label="パスをコピー" onClick={() => { navigator.clipboard?.writeText(file.path).catch(() => {}); onClose(); }} />
       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
-      <MenuItem Icon={Pencil} label="名前を変更" onClick={() => { onRename(); onClose(); }} />
-      <MenuItem Icon={Trash2} label="ゴミ箱に移動" danger onClick={() => { onDelete(); onClose(); }} />
+      {count === 1 && (
+        <MenuItem Icon={Pencil} label="名前を変更" onClick={() => { onRename(); onClose(); }} />
+      )}
+      <MenuItem
+        Icon={Trash2}
+        label={count > 1 ? `選択中の ${count} 件をゴミ箱に移動` : 'ゴミ箱に移動'}
+        danger
+        onClick={() => { onDelete(); onClose(); }}
+      />
     </div>
   );
 }

@@ -30,8 +30,7 @@ export function Sidebar() {
   const {
     activeFolder,
     setActiveFolder,
-    allFiles,
-    starred,
+    starredFiles,
     folderCounts,
     screen,
     setScreen,
@@ -41,12 +40,15 @@ export function Sidebar() {
     setPeriodFilter,
     theme,
     setTheme,
+    viewMode,
   } = useStore();
+  // The calendar pages through months itself, so the period list doesn't apply there.
+  const periodIgnored = screen === 'main' && viewMode === 'calendar';
 
   const standard = folders.filter((f) => f.isStandard);
   const custom = folders.filter((f) => !f.isStandard);
   const countFor = (key: FolderKey) => folderCounts[key] ?? 0;
-  const starredCount = allFiles.filter((f) => !f.isDir && starred.has(f.path)).length;
+  const starredCount = starredFiles.length;
 
   const goFolder = (key: FolderKey) => {
     setActiveFolder(key);
@@ -175,8 +177,13 @@ export function Sidebar() {
         {/* Section: 表示期間 */}
         <div style={{ marginTop: 18, padding: '4px 8px 6px' }}>
           <SectionLabel>表示期間</SectionLabel>
+          {periodIgnored && (
+            <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+              カレンダーでは全期間を表示します
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, opacity: periodIgnored ? 0.45 : 1 }}>
           {PERIODS.map((p) => (
             <SidebarItem
               key={p.id}

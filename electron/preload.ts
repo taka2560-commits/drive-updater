@@ -13,13 +13,16 @@ contextBridge.exposeInMainWorld('localUpdater', {
   ) => ipcRenderer.invoke('scan-folders', folders, recursive, excludeKeywords),
   readImage: (path: string) => ipcRenderer.invoke('read-image', path),
   readText: (path: string) => ipcRenderer.invoke('read-text', path),
+  statPaths: (paths: string[]) => ipcRenderer.invoke('stat-paths', paths),
   trashItem: (path: string) => ipcRenderer.invoke('trash-item', path),
   renameItem: (oldPath: string, newName: string) =>
     ipcRenderer.invoke('rename-item', oldPath, newName),
   startWatch: (paths: string[], recursive: boolean) =>
     ipcRenderer.send('start-watch', paths, recursive),
+  // The IPC event (and its sender) stays in the preload; the page only gets a plain call.
   onFilesChanged: (cb: () => void) => {
-    ipcRenderer.on('files-changed', cb);
-    return () => ipcRenderer.off('files-changed', cb);
+    const listener = () => cb();
+    ipcRenderer.on('files-changed', listener);
+    return () => ipcRenderer.off('files-changed', listener);
   },
 });

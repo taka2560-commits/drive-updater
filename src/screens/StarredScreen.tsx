@@ -15,20 +15,25 @@ const FOLDER_ICON: Record<string, LucideIcon> = {
 };
 
 export function StarredContent() {
-  const { allFiles, starred, revealFile, toggleStar, folders } = useStore();
-
-  const starredFiles = useMemo(
-    () => allFiles.filter((f) => starred.has(f.path) && !f.isDir),
-    [allFiles, starred],
-  );
+  const { starredFiles, revealFile, toggleStar, folders } = useStore();
 
   const groups = useMemo(() => {
-    return folders.map((folder) => ({
-      folder,
-      files: starredFiles
-        .filter((f) => f.folder === folder.key)
-        .sort((a, b) => b.modifiedAt - a.modifiedAt),
-    })).filter((g) => g.files.length > 0);
+    const byNewest = (a: FileEntry, b: FileEntry) => b.modifiedAt - a.modifiedAt;
+    const known = new Set(folders.map((f) => f.key));
+    const grouped: { key: string; icon: string; label: string; files: FileEntry[] }[] = folders.map((folder) => ({
+      key: folder.key as string,
+      icon: folder.icon,
+      label: folder.label,
+      files: starredFiles.filter((f) => f.folder === folder.key).sort(byNewest),
+    }));
+    // Starred files whose watched folder was removed still deserve a place.
+    grouped.push({
+      key: '__other',
+      icon: 'folder',
+      label: 'その他の場所',
+      files: starredFiles.filter((f) => !known.has(f.folder)).sort(byNewest),
+    });
+    return grouped.filter((g) => g.files.length > 0);
   }, [starredFiles, folders]);
 
   // Jump to the file's own folder (and sub-folder) with it selected.
@@ -55,8 +60,8 @@ export function StarredContent() {
         <EmptyState variant="starred" />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px var(--gutter-window)' }}>
-          {groups.map(({ folder, files }) => (
-            <Group key={folder.key} icon={folder.icon} label={folder.label} count={files.length}>
+          {groups.map(({ key, icon, label, files }) => (
+            <Group key={key} icon={icon} label={label} count={files.length}>
               {files.map((f, i) => (
                 <StarredRow
                   key={f.path}

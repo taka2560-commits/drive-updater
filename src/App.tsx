@@ -9,7 +9,7 @@ import { BreadcrumbBar } from './components/BreadcrumbBar';
 import { StatusBar } from './components/StatusBar';
 import { ConfirmDialog } from './components/ConfirmDialog';
 
-import { FileTable } from './components/FileTable';
+import { FileTable, Skeleton } from './components/FileTable';
 import { FileGroupList } from './components/FileGroupList';
 import { CalendarView } from './components/CalendarView';
 import { BulkActionBar } from './components/BulkActionBar';
@@ -31,6 +31,8 @@ function Shell() {
 
       // While the delete dialog is open it owns the keyboard.
       if (store.pendingDelete) return;
+      // Keys pressed while a Japanese IME is composing belong to the IME (Enter confirms, Esc cancels).
+      if (e.isComposing || e.keyCode === 229) return;
 
       if (e.key === 'Escape') {
         if (store.searchQuery) store.setSearchQuery('');
@@ -153,6 +155,7 @@ function MainContent() {
     resetFilters,
     selectedFile,
     rescan,
+    isScanning,
   } = useStore();
 
   const isEmpty = filteredFiles.length === 0;
@@ -168,7 +171,9 @@ function MainContent() {
       <BreadcrumbBar />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {isEmpty ? (
+          {isEmpty && isScanning ? (
+            <Skeleton />
+          ) : isEmpty ? (
             <EmptyState
               variant={emptyVariant}
               query={searchQuery}

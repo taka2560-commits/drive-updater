@@ -239,6 +239,8 @@ function ExcludeTab() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
+            // Enter while the IME is composing only confirms the conversion.
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
             if (e.key === 'Enter') {
               addExclude(draft);
               setDraft('');

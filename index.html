@@ -6,16 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LocalUpdater</title>
     <!-- FOUC guard: apply saved theme before the bundle loads -->
-    <script>
-      (function () {
-        try {
-          var t = localStorage.getItem('localUpdater.theme');
-          if (t === 'earth' || t === 'night' || t === 'light') {
-            document.documentElement.dataset.theme = t;
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
     <!-- Fonts are bundled locally (see src/main.tsx); no external font requests. -->
   </head>
   <body>

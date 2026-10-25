@@ -229,11 +229,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     selectionAnchorRef.current = null;
   }, []);
 
-  const folderKeyForPath = (p: string): FolderKey => {
+  /** The watched folder a path belongs to (deepest match), or null when it is outside all of them. */
+  const folderKeyForPath = (p: string): FolderKey | null => {
     const match = foldersRef.current
       .filter((f) => relativeTo(f.path, p) !== null || p === f.path)
       .sort((a, b) => b.path.length - a.path.length)[0];
-    return match?.key ?? activeFolderRef.current;
+    return match?.key ?? null;
   };
 
   const doScan = useCallback(() => {
@@ -259,10 +260,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .then(async (rootFiles) => {
         let result = rootFiles;
         if (!rec && expandedRef.current.size > 0) {
-          const subList = [...expandedRef.current].map((p) => ({
-            key: folderKeyForPath(p),
-            path: p,
-          }));
+          const subList = [...expandedRef.current].flatMap((p) => {
+            const key = folderKeyForPath(p);
+            return key ? [{ key, path: p }] : [];
+          });
           const subFiles = await api.scanFolders(subList, false, exclude);
           result = mergeByPath(rootFiles, subFiles);
         }
@@ -303,7 +304,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const api = getAPI();
       if (api && !recursiveRef.current) {
         expandedRef.current.add(path);
-        const key = folderKeyForPath(path);
+        const key = folderKeyForPath(path) ?? activeFolderRef.current;
         setIsScanning(true);
         api
           .scanFolders([{ key, path }], false, excludeRef.current)
@@ -460,31 +461,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       saveJSON(K.starred, [...next]);
       return next;
     });
-    if (expandedRef.current.has(path)) {
-      expandedRef.current.delete(path);
-      expandedRef.current.add(nextPath);
-    }
+    expandedRef.current = new Set([...expandedRef.current].map(remap));
     setRawSelectedPath((cur) => (cur ? remap(cur) : cur));
     setRawSelectedPaths((prev) => new Set([...prev].map(remap)));
     selectionAnchorRef.current = nextPath;
   }, [notify]);
 
+  // The scanner skips excluded names, so a change only shows up after a rescan.
+  const applyExclude = (next: string[]) => {
+    setExcludeKeywords(next);
+    excludeRef.current = next;
+    saveJSON(K.exclude, next);
+    doScan();
+  };
   const addExclude = (kw: string) => {
     const v = kw.trim();
-    if (!v) return;
-    setExcludeKeywords((prev) => {
-      if (prev.includes(v)) return prev;
-      const next = [...prev, v];
-      saveJSON(K.exclude, next);
-      return next;
-    });
+    if (!v || excludeKeywords.includes(v)) return;
+    applyExclude([...excludeKeywords, v]);
   };
   const removeExclude = (kw: string) => {
-    setExcludeKeywords((prev) => {
-      const next = prev.filter((x) => x !== kw);
-      saveJSON(K.exclude, next);
-      return next;
-    });
+    applyExclude(excludeKeywords.filter((x) => x !== kw));
   };
 
   const addCustomFolder = useCallback(
@@ -509,6 +505,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const removeCustomFolder = useCallback((key: FolderKey) => {
+    const removed = foldersRef.current.find((f) => f.key === key);
+    if (removed) {
+      // Forget sub-folders opened inside it, or later scans would keep listing them.
+      for (const p of [...expandedRef.current]) {
+        if (p === removed.path || relativeTo(removed.path, p) !== null) expandedRef.current.delete(p);
+      }
+    }
+    foldersRef.current = foldersRef.current.filter((f) => f.key !== key);
     setFolders((prev) => {
       const next = prev.filter((f) => f.key !== key);
       saveJSON(K.customFolders, next.filter((f) => !f.isStandard));
@@ -592,7 +596,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     return allFiles.filter((f) => {
       if (f.folder !== activeFolder || isExcluded(f)) return false;
-      return !root || isDirectChild(root, f.path) || relativeTo(root, f.path) === null;
+      return !root || isDirectChild(root, f.path);
     });
   }, [allFiles, activeFolder, browsePath, excludeKeywords, recursive, folders]);
 
@@ -615,13 +619,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (filterByDate && toDateKey(f.modifiedAt) !== filterByDate) return false;
       if (!f.isDir) {
         // Inside a sub-folder the user is deliberately browsing: show every period.
-        if (!browsePath && f.modifiedAt < periodStart) return false;
+        // ...and the calendar pages through months itself, so the period limit doesn't apply.
+        if (!browsePath && viewMode !== 'calendar' && f.modifiedAt < periodStart) return false;
         if (rangeStart && f.modifiedAt < rangeStart) return false;
         if (sizeMin && f.sizeBytes < sizeMin) return false;
       }
       return true;
     });
-  }, [searchMatched, filterByDate, dateRange, sizeFilter, periodFilter, browsePath]);
+  }, [searchMatched, filterByDate, dateRange, sizeFilter, periodFilter, browsePath, viewMode]);
 
   const countByType = useMemo(() => {
     const counts = {
@@ -706,7 +711,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   /** Jump to a file from anywhere (e.g. the starred list): folder, sub-folder, filters, selection. */
   const revealFile = (path: string) => {
-    const key = folderKeyForPath(path);
+    const key = folderKeyForPath(path) ?? activeFolderRef.current;
     const root = foldersRef.current.find((f) => f.key === key)?.path ?? '';
     setScreen('main');
     setActiveFolderState(key);
@@ -731,6 +736,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => allFiles.find((f) => f.path === selectedPath) ?? null,
     [allFiles, selectedPath],
   );
+
+  // Starred files in sub-folders that haven't been opened this session aren't in
+  // allFiles; look them up directly so they never drop out of the starred list.
+  const [starredExtra, setStarredExtra] = useState<FileEntry[]>([]);
+  useEffect(() => {
+    const api = getAPI();
+    if (!api?.statPaths || isScanning) return;
+    const known = new Set(allFiles.map((f) => f.path));
+    const missing = [...starred].filter((p) => !known.has(p));
+    // Stale extras are harmless: starredFiles drops anything already listed or unstarred.
+    if (missing.length === 0) return;
+    let cancelled = false;
+    api
+      .statPaths(missing)
+      .then((found) => {
+        if (cancelled) return;
+        setStarredExtra(
+          // Outside every watched folder: keep the main process's empty key.
+          found.map((f) => ({ ...f, folder: folderKeyForPath(f.path) ?? f.folder })),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [allFiles, starred, isScanning]);
+
+  const starredFiles = useMemo(() => {
+    const inList = allFiles.filter((f) => !f.isDir && starred.has(f.path));
+    const seen = new Set(inList.map((f) => f.path));
+    const extra = starredExtra.filter((f) => !f.isDir && starred.has(f.path) && !seen.has(f.path));
+    return [...inList, ...extra];
+  }, [allFiles, starred, starredExtra]);
 
   // Sidebar badges follow the same rules as the list (period + depth), so the
   // number next to a folder matches what opening it shows.
@@ -798,6 +836,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     selectRange,
     clearSelection,
     starred,
+    starredFiles,
     isStarred,
     toggleStar,
     starMany,

@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
+import { createLimiter, type Limiter } from './limiter';
+import { registerUsageIpc } from './usage';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -56,6 +58,8 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+
+registerUsageIpc();
 
 // デフォルトのディレクトリパスを返す
 ipcMain.handle('get-default-paths', () => ({
@@ -185,23 +189,6 @@ ipcMain.handle('stat-paths', async (_e, paths: string[]) => {
   return out.filter((f): f is FileEntry => f !== null);
 });
 
-// 同時に発行するファイル操作の上限（大きなフォルダでもメインプロセスを止めず、ハンドルも使い切らない）
-function createLimiter(max: number) {
-  let active = 0;
-  const waiting: (() => void)[] = [];
-  return async function run<T>(fn: () => Promise<T>): Promise<T> {
-    if (active >= max) await new Promise<void>((resolve) => waiting.push(resolve));
-    else active++;
-    try {
-      return await fn();
-    } finally {
-      const next = waiting.shift();
-      if (next) next(); // 枠を待機中の処理へ引き渡す
-      else active--;
-    }
-  };
-}
-type Limiter = ReturnType<typeof createLimiter>;
 
 // ディレクトリを走査してファイル + サブフォルダを返す（非同期。UI をブロックしない）
 async function scanDir(

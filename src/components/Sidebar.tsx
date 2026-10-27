@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Monitor, FileText, Download, Folder, Plus, RefreshCw, Calendar, Star } from 'lucide-react';
+import { Monitor, FileText, Download, Folder, Plus, RefreshCw, Calendar, Star, HardDrive } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useStore } from '../storeContext';
 import type { FolderKey, PeriodFilter } from '../types';
@@ -171,6 +171,12 @@ export function Sidebar() {
             count={starredCount}
             selected={screen === 'starred'}
             onClick={() => setScreen('starred')}
+          />
+          <SidebarItem
+            Icon={HardDrive}
+            label="容量分析"
+            selected={screen === 'usage'}
+            onClick={() => setScreen('usage')}
           />
         </div>
 

@@ -54,7 +54,8 @@ export function Toolbar({ searchRef }: { searchRef: RefObject<HTMLInputElement |
           }}
         >
           {VIEWS.map((v) => {
-            const active = viewMode === v.value;
+            // Only the list screens have a view mode; elsewhere no tab is current.
+            const active = screen === 'main' && viewMode === v.value;
             return (
               <button
                 key={v.value}

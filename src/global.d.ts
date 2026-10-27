@@ -17,6 +17,12 @@ interface LocalUpdaterAPI {
   trashItem: (path: string) => Promise<boolean>;
   renameItem: (oldPath: string, newName: string) => Promise<string | null>;
   startWatch: (paths: string[], recursive: boolean) => void;
+  analyzeUsage: (root: string) => Promise<import('./types').UsageAnalyzeResult>;
+  cancelUsage: () => Promise<void>;
+  usageStatus: () => Promise<import('./types').UsageProgress | null>;
+  getUsageNode: (root: string, path: string) => Promise<import('./types').UsageNode | null>;
+  listUsage: () => Promise<import('./types').UsageSummary[]>;
+  onUsageProgress: (cb: (p: import('./types').UsageProgress) => void) => () => void;
   onFilesChanged: (cb: () => void) => () => void;
 }
 

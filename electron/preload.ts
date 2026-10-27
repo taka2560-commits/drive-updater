@@ -19,6 +19,16 @@ contextBridge.exposeInMainWorld('localUpdater', {
     ipcRenderer.invoke('rename-item', oldPath, newName),
   startWatch: (paths: string[], recursive: boolean) =>
     ipcRenderer.send('start-watch', paths, recursive),
+  analyzeUsage: (root: string) => ipcRenderer.invoke('usage-analyze', root),
+  cancelUsage: () => ipcRenderer.invoke('usage-cancel'),
+  usageStatus: () => ipcRenderer.invoke('usage-status'),
+  getUsageNode: (root: string, path: string) => ipcRenderer.invoke('usage-node', root, path),
+  listUsage: () => ipcRenderer.invoke('usage-list'),
+  onUsageProgress: (cb: (p: unknown) => void) => {
+    const listener = (_e: unknown, p: unknown) => cb(p);
+    ipcRenderer.on('usage-progress', listener);
+    return () => ipcRenderer.off('usage-progress', listener);
+  },
   // The IPC event (and its sender) stays in the preload; the page only gets a plain call.
   onFilesChanged: (cb: () => void) => {
     const listener = () => cb();

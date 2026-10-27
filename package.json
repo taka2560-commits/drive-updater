@@ -1,7 +1,7 @@
 {
   "name": "drive-updater",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "ローカルの最近更新されたファイルを一覧表示するデスクトップアプリ",
   "author": "taka2560-commits",
   "type": "module",

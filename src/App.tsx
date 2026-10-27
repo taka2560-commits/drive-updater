@@ -17,6 +17,7 @@ import { DetailPane } from './components/DetailPane';
 import { EmptyState } from './components/EmptyState';
 import { StarredContent } from './screens/StarredScreen';
 import { SettingsContent } from './screens/SettingsScreen';
+import { UsageContent } from './screens/UsageScreen';
 
 function Shell() {
   const store = useStore();
@@ -137,6 +138,7 @@ function Shell() {
           {store.screen === 'main' && <MainContent />}
           {store.screen === 'starred' && <StarredContent />}
           {store.screen === 'settings' && <SettingsContent />}
+          {store.screen === 'usage' && <UsageContent />}
           <StatusBar />
         </main>
       </Window>
